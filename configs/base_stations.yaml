@@ -1,0 +1,16 @@
+base_stations:
+  - id: bs-1
+    capacity:
+      spectrum_mhz: 40
+      compute_units: 20
+      storage_gb: 200
+  - id: bs-2
+    capacity:
+      spectrum_mhz: 40
+      compute_units: 20
+      storage_gb: 200
+  - id: bs-3
+    capacity:
+      spectrum_mhz: 20
+      compute_units: 10
+      storage_gb: 100
