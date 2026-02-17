@@ -5,9 +5,9 @@ import grpc
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "gen"))
 
-from gen import scheduler_pb2
-from gen import scheduler_pb2_grpc
-from gen import telemetry_pb2
+import scheduler_pb2
+import scheduler_pb2_grpc
+import telemetry_pb2
 
 def telemetry_stream(cell_id="cell-1", total_prbs=50, ue_count=8, epochs=50):
     """
