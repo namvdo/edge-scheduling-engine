@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package edge.scheduling.v1;
+
+import "telemetry.proto";
+
+option go_package = "edge-scheduling-engine/gen/go/edge/scheduling/v1;schedulingv1";
+
+// How much of the frame is DL vs UL (for dynamic TDD demo)
+message TddConfig {
+  // Percentages 0..100 (e.g., dl=70 ul=30)
+  uint32 dl_percent = 1;
+  uint32 ul_percent = 2;
+}
+
+// Per-UE allocation as a simple "weight" or PRB count (demo-level abstraction)
+message UeAllocation {
+  string ue_id = 1;
+  uint32 prbs = 2;      // how many PRBs to assign this epoch (simplified)
+  float weight = 3;     // optional alternative to prbs
+}
+
+message ScheduleDecision {
+  string cell_id = 1;
+  uint64 epoch = 2;          // must match telemetry epoch
+  uint64 decision_version = 3; // increments each decision commit
+  TddConfig tdd = 4;
+  repeated UeAllocation allocations = 5;
+}
+
+message Ack {
+  bool ok = 1;
+  string message = 2;
+}
+
+// Scheduler service API
+service SchedulerService {
+  // Base station opens one stream per cell:
+  //  - sends CellTelemetry
+  //  - receives ScheduleDecision for each epoch
+  rpc Schedule(stream CellTelemetry) returns (stream ScheduleDecision);
+
+  // Optional: quick liveness ping
+  rpc Ping(Ack) returns (Ack);
+}

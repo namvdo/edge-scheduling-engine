@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package edge.scheduling.v1;
+
+option go_package = "edge-scheduling-engine/gen/go/edge/scheduling/v1;schedulingv1";
+
+// One UE's report (simplified for project/demo)
+message UeReport {
+  string ue_id = 1;
+  string slice_id = 2;     // e.g., "eMBB", "URLLC", "mMTC"
+  uint32 cqi = 3;          // 0..15 (simulated ok)
+  float sinr_db = 4;       // signal quality
+  uint64 dl_buffer_bytes = 5;
+  uint64 ul_buffer_bytes = 6;
+  uint32 avg_throughput_kbps = 7; // for PF-style fairness (optional)
+}
+
+// Cell-level telemetry for one scheduling epoch
+message CellTelemetry {
+  string cell_id = 1;
+  uint64 epoch = 2;            // logical time step (0,1,2...)
+  uint64 timestamp_ms = 3;     // wall-clock (optional)
+  uint32 total_prbs = 4;       // e.g., 50/100/273 depending on bandwidth
+  float prb_utilization = 5;   // 0..1 (optional)
+  repeated UeReport ues = 6;
+}
