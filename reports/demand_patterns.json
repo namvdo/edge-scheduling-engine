@@ -1,0 +1,60 @@
+{
+  "input": "logs_normal/requests_kpi.csv",
+  "total_rows": 10000,
+  "top_ticks_by_request_volume": [
+    [
+      0,
+      200
+    ],
+    [
+      1,
+      200
+    ],
+    [
+      2,
+      200
+    ],
+    [
+      3,
+      200
+    ],
+    [
+      4,
+      200
+    ]
+  ],
+  "base_station_hotspots": [
+    [
+      "bs-2",
+      379
+    ],
+    [
+      "bs-1",
+      363
+    ],
+    [
+      "bs-3",
+      254
+    ]
+  ],
+  "qos_distribution": [
+    [
+      "best-effort",
+      7001
+    ],
+    [
+      "embb",
+      2009
+    ],
+    [
+      "urllc",
+      808
+    ],
+    [
+      "mmtc",
+      182
+    ]
+  ],
+  "avg_scheduler_latency_ms": 0.005913217801025894,
+  "avg_estimated_throughput_mbps": 0.5802846266001634
+}

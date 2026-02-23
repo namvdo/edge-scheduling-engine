@@ -1,0 +1,50 @@
+base_stations:
+  # --- EU region ---
+  - id: eu-bs-1
+    region: eu
+    location_xy: [400, 600]
+    capacity:
+      spectrum_mhz: 40
+      compute_units: 20
+      storage_gb: 200
+
+  - id: eu-bs-2
+    region: eu
+    location_xy: [1500, 1200]
+    capacity:
+      spectrum_mhz: 40
+      compute_units: 20
+      storage_gb: 200
+
+  - id: eu-bs-3
+    region: eu
+    location_xy: [900, 1900]
+    capacity:
+      spectrum_mhz: 20
+      compute_units: 10
+      storage_gb: 100
+
+  # --- US region ---
+  - id: us-bs-1
+    region: us
+    location_xy: [500, 500]
+    capacity:
+      spectrum_mhz: 50
+      compute_units: 22
+      storage_gb: 220
+
+  - id: us-bs-2
+    region: us
+    location_xy: [1400, 1100]
+    capacity:
+      spectrum_mhz: 50
+      compute_units: 22
+      storage_gb: 220
+
+  - id: us-bs-3
+    region: us
+    location_xy: [850, 1750]
+    capacity:
+      spectrum_mhz: 25
+      compute_units: 12
+      storage_gb: 120

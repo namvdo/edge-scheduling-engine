@@ -1,0 +1,41 @@
+services:
+  scheduler:
+    build:
+      context: ../..
+      dockerfile: cloud/inc9/Dockerfile
+    environment:
+      REGION: ${REGION:-eu}
+    command: >
+      bash -lc "python -m ran_scheduler.inc9.scheduler_api
+      --config configs/base_stations_multiregion.yaml
+      --region ${REGION:-eu}
+      --host 0.0.0.0
+      --port 8443
+      --prometheus --prometheus-port 8000
+      --tls-ca cloud/inc9/certs/out/ca.crt"
+    volumes:
+      - ./certs/out:/app/cloud/inc9/certs/out:ro
+    ports:
+      - "8443:8443"
+      - "8000:8000"
+
+  ran:
+    build:
+      context: ../..
+      dockerfile: cloud/inc9/Dockerfile
+    environment:
+      REGION: ${REGION:-eu}
+    depends_on:
+      - scheduler
+    command: >
+      bash -lc "python -m ran_scheduler.inc9.ran_agent
+      --config configs/base_stations_multiregion.yaml
+      --region ${REGION:-eu}
+      --scheduler-url https://scheduler:8443
+      --ticks 50 --users 200 --base-requests-per-tick 200
+      --scenario rush
+      --log-dir cloud/inc9/out/logs_${REGION:-eu}
+      --tls-ca cloud/inc9/certs/out/ca.crt"
+    volumes:
+      - ./certs/out:/app/cloud/inc9/certs/out:ro
+      - ./out:/app/cloud/inc9/out

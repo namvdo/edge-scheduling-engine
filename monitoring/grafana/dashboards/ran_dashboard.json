@@ -1,0 +1,47 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Requests (granted/blocked)",
+      "targets": [
+        {
+          "expr": "sum(rate(ran_requests_total{status='granted'}[1m]))",
+          "legendFormat": "granted/s"
+        },
+        {
+          "expr": "sum(rate(ran_requests_total{status='blocked'}[1m]))",
+          "legendFormat": "blocked/s"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduler latency p95 (ms)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ran_scheduler_latency_ms_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [
+    "ran"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "RAN Scheduler (Miika KPIs)",
+  "version": 1
+}

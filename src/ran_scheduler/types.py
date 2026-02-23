@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
+
+
+
+
 
 
 @dataclass(frozen=True)
 class ResourceVector:
-    #Generic resource vector.
+    """THIS is generic resource vector, so spectrum, compute, storage."""
+
     spectrum_mhz: float = 0.0
     compute_units: float = 0.0
     storage_gb: float = 0.0
@@ -34,43 +39,61 @@ class ResourceVector:
         )
 
 
+
+
 @dataclass
 class BaseStation:
     id: str
     capacity: ResourceVector
+    location_xy: Tuple[float, float] = (0.0, 0.0)
+    region: str = "local"
+
     available: ResourceVector = field(init=False)
 
     def __post_init__(self) -> None:
         self.available = self.capacity
+
 
     def can_allocate(self, demand: ResourceVector) -> bool:
         return demand.fits_in(self.available)
 
     def allocate(self, demand: ResourceVector) -> None:
         if not self.can_allocate(demand):
-            raise ValueError(f"Insufficient capacity on {self.id}. demand={demand}, available={self.available}")
+            raise ValueError(
+                f"Insufficient capacity on {self.id}. demand={demand}, available={self.available}"
+            )
         self.available = self.available.sub(demand)
 
     def reset(self) -> None:
         self.available = self.capacity
 
 
+
+
+
+
 @dataclass(frozen=True)
 class UserRequest:
-    #a single request at a discrete time tick.
+    """this thing is a single user request at discrete time tick."""
+
     request_id: str
     user_id: str
     tick: int
     demand: ResourceVector
-    #Extension points:
-    qos_class: str = "best-effort"
-    signal_quality: Optional[float] = None  #for example SINR
-    cell_preference: Optional[str] = None   #for example user wants nearest BS
+
+    #extension points here
+    qos_class: str = "best-effort"  #for exxample best-effort, embb, urllc, mmtc
+    signal_quality_db: Optional[float] = None  #e.g., SINR in dB
+    cell_preference: Optional[str] = None  #preferred base station id!!!
+    user_location_xy: Optional[Tuple[float, float]] = None  #(x,y) in meters!!!
+
 
 
 class AllocationStatus(str, Enum):
     GRANTED = "granted"
     BLOCKED = "blocked"
+
+
 
 
 @dataclass(frozen=True)
@@ -82,6 +105,14 @@ class Allocation:
     granted: ResourceVector
     status: AllocationStatus
     reason: Optional[str] = None
+
+    #tie allocation back to radio conditions
+    signal_quality_db: Optional[float] = None
+    distance_m: Optional[float] = None
+    qos_class: str = "best-effort"
+
+
+
 
 
 @dataclass

@@ -1,0 +1,84 @@
+services:
+  scheduler-eu:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build:
+      context: ../..
+      dockerfile: cloud/inc9/Dockerfile
+    command: >
+      python -m ran_scheduler.inc9.scheduler_api
+      --config configs/base_stations_multiregion.yaml
+      --region eu
+      --host 0.0.0.0
+      --port 8443
+      --prometheus --prometheus-port 8000
+      --tls-ca cloud/inc9/certs/out/ca.crt
+    volumes:
+      - ./certs/out:/app/cloud/inc9/certs/out:ro
+    ports:
+      - "18443:8443"   #HTTPS (mTLS)
+      - "18000:8000"   #Prometheus metrics
+
+  ran-eu:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build:
+      context: ../..
+      dockerfile: cloud/inc9/Dockerfile
+    depends_on:
+      - scheduler-eu
+    command: >
+      python -m ran_scheduler.inc9.ran_agent
+      --config configs/base_stations_multiregion.yaml
+      --region eu
+      --scheduler-url https://scheduler-eu:8443
+      --server-hostname scheduler-eu
+      --ticks 50 --users 200 --base-requests-per-tick 200
+      --scenario rush
+      --log-dir cloud/inc9/out/logs_eu
+      --tls-ca cloud/inc9/certs/out/ca.crt
+    volumes:
+      - ./certs/out:/app/cloud/inc9/certs/out:ro
+      - ./out:/app/cloud/inc9/out
+
+  scheduler-us:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build:
+      context: ../..
+      dockerfile: cloud/inc9/Dockerfile
+    command: >
+      python -m ran_scheduler.inc9.scheduler_api
+      --config configs/base_stations_multiregion.yaml
+      --region us
+      --host 0.0.0.0
+      --port 8443
+      --prometheus --prometheus-port 8000
+      --tls-ca cloud/inc9/certs/out/ca.crt
+    volumes:
+      - ./certs/out:/app/cloud/inc9/certs/out:ro
+    ports:
+      - "28443:8443"   #HTTPS (mTLS)
+      - "28000:8000"   #prometheus metrics
+
+  ran-us:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build:
+      context: ../..
+      dockerfile: cloud/inc9/Dockerfile
+    depends_on:
+      - scheduler-us
+    command: >
+      python -m ran_scheduler.inc9.ran_agent
+      --config configs/base_stations_multiregion.yaml
+      --region us
+      --scheduler-url https://scheduler-us:8443
+      --server-hostname scheduler-us
+      --ticks 50 --users 200 --base-requests-per-tick 200
+      --scenario rush
+      --log-dir cloud/inc9/out/logs_us
+      --tls-ca cloud/inc9/certs/out/ca.crt
+    volumes:
+      - ./certs/out:/app/cloud/inc9/certs/out:ro
+      - ./out:/app/cloud/inc9/out

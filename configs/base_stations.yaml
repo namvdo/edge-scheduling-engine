@@ -1,15 +1,23 @@
 base_stations:
   - id: bs-1
+    region: local
+    location_xy: [400, 600]     # meters
     capacity:
       spectrum_mhz: 40
       compute_units: 20
       storage_gb: 200
+
   - id: bs-2
+    region: local
+    location_xy: [1500, 1200]
     capacity:
       spectrum_mhz: 40
       compute_units: 20
       storage_gb: 200
+
   - id: bs-3
+    region: local
+    location_xy: [900, 1900]
     capacity:
       spectrum_mhz: 20
       compute_units: 10
