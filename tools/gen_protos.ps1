@@ -1,5 +1,6 @@
 Remove-Item -Recurse -Force gen -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force gen | Out-Null
+New-Item -ItemType File -Force gen\__init__.py | Out-Null
 
 python -m grpc_tools.protoc -I proto `
   --python_out=gen `

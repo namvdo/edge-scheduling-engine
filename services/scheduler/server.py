@@ -1,23 +1,41 @@
+from __future__ import annotations
+
+import os
+import sys
 import time
 from concurrent import futures
 
 import grpc
 
+try:
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover
+    def load_dotenv() -> None:
+        return None
 
-# Add generated code folder to path (simple approach for student projects)
-import os, sys
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "gen"))
 
-from gen import scheduler_pb2
-from gen import scheduler_pb2_grpc
-from gen import telemetry_pb2
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+GEN_DIR = os.path.join(PROJECT_ROOT, "gen")
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+if GEN_DIR not in sys.path:
+    sys.path.append(GEN_DIR)
+
+import scheduler_pb2
+import scheduler_pb2_grpc
+import telemetry_pb2
+
+from services.scheduler.cluster import (
+    ClusterConfig,
+    EtcdClient,
+    LeaderElector,
+    RecoveryManager,
+    ReplicatedStateStore,
+)
+
 
 def simple_pf_allocate(cell: telemetry_pb2.CellTelemetry):
-    """
-    Very simple proportional-fair-ish allocator:
-    score = demand / (avg_throughput+1)
-    allocate PRBs proportional to score.
-    """
+    """Simple PF-style allocator for demo traffic."""
     total_prbs = max(1, int(cell.total_prbs))
     scores = []
     for ue in cell.ues:
@@ -28,7 +46,6 @@ def simple_pf_allocate(cell: telemetry_pb2.CellTelemetry):
 
     score_sum = sum(s for _, s in scores) or 1.0
 
-    # Allocate PRBs
     allocations = []
     prb_assigned = 0
     for ue_id, score in scores:
@@ -36,7 +53,6 @@ def simple_pf_allocate(cell: telemetry_pb2.CellTelemetry):
         allocations.append((ue_id, prbs))
         prb_assigned += prbs
 
-    # Fix rounding drift: adjust last UE to match total_prbs
     if allocations:
         drift = total_prbs - prb_assigned
         last_ue, last_prbs = allocations[-1]
@@ -46,11 +62,7 @@ def simple_pf_allocate(cell: telemetry_pb2.CellTelemetry):
 
 
 def dynamic_tdd(cell: telemetry_pb2.CellTelemetry):
-    """
-    Rule-based dynamic TDD:
-    If DL buffer dominates -> more DL percent; if UL dominates -> more UL.
-    Add a simple clamp and balanced fallback.
-    """
+    """Rule-based dynamic TDD for demo traffic."""
     dl = sum(u.dl_buffer_bytes for u in cell.ues)
     ul = sum(u.ul_buffer_bytes for u in cell.ues)
 
@@ -63,18 +75,93 @@ def dynamic_tdd(cell: telemetry_pb2.CellTelemetry):
 
 class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
     def __init__(self):
-        self._decision_version = 0
+        self._decision_versions: dict[str, int] = {}
+
+        load_dotenv()
+        self.cluster_cfg = ClusterConfig.from_env()
+
+        self.consensus_enabled = False
+        self.etcd: EtcdClient | None = None
+        self.elector: LeaderElector | None = None
+        self.store: ReplicatedStateStore | None = None
+        self.recovery: RecoveryManager | None = None
+
+        if self.cluster_cfg.consensus_enabled:
+            try:
+                self.etcd = EtcdClient(
+                    self.cluster_cfg.etcd_endpoints,
+                    self.cluster_cfg.etcd_dial_timeout_sec,
+                )
+                self.etcd.connect()
+                self.elector = LeaderElector(self.cluster_cfg, self.etcd)
+                self.store = ReplicatedStateStore(self.cluster_cfg.state_prefix, self.etcd)
+                self.recovery = RecoveryManager(self.store)
+                self.consensus_enabled = True
+                print(
+                    f"[CLUSTER] consensus enabled node={self.cluster_cfg.node_id} "
+                    f"etcd={','.join(self.cluster_cfg.etcd_endpoints)}"
+                )
+            except Exception as exc:
+                print(f"[CLUSTER] consensus disabled due to startup error: {exc}")
+
+    def _load_recovered_version(self, cell_id: str) -> None:
+        if cell_id in self._decision_versions:
+            return
+        if self.consensus_enabled and self.recovery:
+            recovered = self.recovery.recover_latest_version(cell_id)
+            self._decision_versions[cell_id] = recovered
+            if recovered > 0:
+                print(f"[RECOVERY] cell={cell_id} recovered_version={recovered}")
+        else:
+            self._decision_versions[cell_id] = 0
+
+    def _try_lead_cell(self, cell_id: str) -> bool:
+        if not self.consensus_enabled or not self.elector:
+            return True
+        acquired, lease = self.elector.try_acquire(cell_id)
+        if acquired:
+            try:
+                lease.refresh()
+            except Exception:
+                pass
+            return True
+        leader = self.elector.current_leader(cell_id)
+        print(f"[FOLLOWER] cell={cell_id} local={self.cluster_cfg.node_id} leader={leader}")
+        return False
 
     def Ping(self, request, context):
         return scheduler_pb2.Ack(ok=True, message="pong")
 
     def Schedule(self, request_iterator, context):
-        """
-        Bidirectional stream:
-        Base station sends CellTelemetry; Scheduler yields ScheduleDecision.
-        """
+        """Bidirectional stream with optional consensus guardrails."""
         for cell in request_iterator:
-            self._decision_version += 1
+            self._load_recovered_version(cell.cell_id)
+
+            if not self._try_lead_cell(cell.cell_id):
+                latest = self.store.get_latest(cell.cell_id) if self.store else None
+                if latest:
+                    # Return last committed decision to avoid diverging output on followers.
+                    yield scheduler_pb2.ScheduleDecision(
+                        cell_id=cell.cell_id,
+                        epoch=cell.epoch,
+                        decision_version=int(latest.get("decision_version", 0)),
+                        tdd=scheduler_pb2.TddConfig(
+                            dl_percent=int(latest.get("dl_percent", 50)),
+                            ul_percent=int(latest.get("ul_percent", 50)),
+                        ),
+                        allocations=[
+                            scheduler_pb2.UeAllocation(
+                                ue_id=a["ue_id"],
+                                prbs=int(a["prbs"]),
+                                weight=float(a.get("weight", 0.0)),
+                            )
+                            for a in latest.get("allocations", [])
+                        ],
+                    )
+                continue
+
+            self._decision_versions[cell.cell_id] += 1
+            decision_version = self._decision_versions[cell.cell_id]
 
             dl_pct, ul_pct = dynamic_tdd(cell)
             allocs = simple_pf_allocate(cell)
@@ -82,13 +169,29 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
             decision = scheduler_pb2.ScheduleDecision(
                 cell_id=cell.cell_id,
                 epoch=cell.epoch,
-                decision_version=self._decision_version,
+                decision_version=decision_version,
                 tdd=scheduler_pb2.TddConfig(dl_percent=dl_pct, ul_percent=ul_pct),
                 allocations=[
                     scheduler_pb2.UeAllocation(ue_id=ue_id, prbs=prbs, weight=0.0)
                     for ue_id, prbs in allocs
                 ],
             )
+
+            if self.consensus_enabled and self.store:
+                self.store.put_latest(
+                    cell.cell_id,
+                    {
+                        "cell_id": cell.cell_id,
+                        "epoch": int(cell.epoch),
+                        "decision_version": decision_version,
+                        "dl_percent": dl_pct,
+                        "ul_percent": ul_pct,
+                        "allocations": [
+                            {"ue_id": ue_id, "prbs": prbs, "weight": 0.0}
+                            for ue_id, prbs in allocs
+                        ],
+                    },
+                )
 
             print(
                 f"[SCHED] cell={cell.cell_id} epoch={cell.epoch} "
@@ -99,7 +202,11 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
             yield decision
 
 
-def serve(host="0.0.0.0", port=50051):
+def serve():
+    load_dotenv()
+    host = os.getenv("SCHEDULER_HOST", "0.0.0.0")
+    port = int(os.getenv("SCHEDULER_PORT", "50051"))
+
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     scheduler_pb2_grpc.add_SchedulerServiceServicer_to_server(SchedulerService(), server)
 
