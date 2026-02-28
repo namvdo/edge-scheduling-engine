@@ -1,0 +1,45 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        # Setup the virtual environment expected by local scripts
+        python -m venv .venv
+        source .venv/bin/activate
+        python -m pip install --upgrade pip
+        
+        # Install project requirements
+        pip install -r requirements.txt
+        
+        # Ensure pytest is installed
+        pip install pytest pytest-asyncio
+
+    - name: Generate gRPC Protocols
+      run: |
+        source .venv/bin/activate
+        chmod +x tools/gen_protos.sh
+        ./tools/gen_protos.sh
+
+    - name: Run Pytest Test Suite
+      run: |
+        source .venv/bin/activate
+        export PYTHONPATH=.:./gen
+        pytest tests/
