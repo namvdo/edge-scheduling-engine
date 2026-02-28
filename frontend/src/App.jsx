@@ -20,13 +20,16 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('config');
   // Fill initial buffer to render chart shapes
   const [metrics, setMetrics] = useState(Array.from({ length: 20 }, (_, i) => ({ time: i, throughput: 0, latency: 0, utilization: 0, users: 0 })));
+  const metricsRef = useRef([]);
   const [logs, setLogs] = useState([]);
   const [trainingMode, setTrainingMode] = useState('Train');
   const [ddpgData, setDdpgData] = useState(generateDDPGData('Train'));
 
   // Config state
   const [syncInterval, setSyncInterval] = useState(10);
-  const [configNodes, setConfigNodes] = useState(5);
+  const [configRu, setConfigRu] = useState(5);
+  const [configDu, setConfigDu] = useState(5);
+  const [appliedConfig, setAppliedConfig] = useState({ ru: 5, du: 5, cu: 1 });
   const [configUes, setConfigUes] = useState(250);
   const [isApplying, setIsApplying] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -36,15 +39,27 @@ const App = () => {
     setDdpgData(generateDDPGData(trainingMode));
   }, [trainingMode]);
 
+  // Reset selected node constraint on shrink
+  useEffect(() => {
+    setSelectedSpikeNode('RU-1');
+  }, [appliedConfig]);
+
   const handleApplyConfig = () => {
     setIsApplying(true);
+    setAppliedConfig({ ru: configRu, du: configDu, cu: 1 });
     sendJsonMessage({
       type: "UPDATE_CONFIG",
-      nodes: configNodes,
+      ru: configRu,
+      du: configDu,
       max_ues: configUes
     });
-    setLogs(prev => [{ type: 'SYS', level: 'INFO', msg: `Applied new configuration. Sync interval set to ${syncInterval}s. Active nodes: ${configNodes}`, node: 'WebUI', ts: new Date().toLocaleTimeString('en-US', { hour12: false }) }, ...prev].slice(0, 10));
-    setTimeout(() => setIsApplying(false), 800);
+    setLogs(prev => [{ type: 'SYS', level: 'INFO', msg: `Applied new configuration. Sync interval set to ${syncInterval}s. Active RUs: ${configRu}, Active DUs: ${configDu}`, node: 'WebUI', ts: new Date().toLocaleTimeString('en-US', { hour12: false }) }, ...prev].slice(0, 10));
+    // Simulate config delay
+    setTimeout(() => {
+      setIsApplying(false);
+      metricsRef.current = [];
+      setMetrics([]);
+    }, 1000);
   };
 
   const handleExportCSV = () => {
@@ -91,6 +106,7 @@ const App = () => {
         setMetrics(prev => {
           const newArr = [...prev.slice(1)];
           newArr.push(lastJsonMessage);
+          metricsRef.current = newArr; // Update ref
           return newArr;
         });
       } else {
@@ -131,6 +147,40 @@ const App = () => {
       return { stroke: "#f59e0b", strokeWidth: 4, opacity: "opacity-70", textFill: "#f59e0b", text: `Util: ${data.compute}%` };
     }
     return { stroke: "#334155", strokeWidth: 3, opacity: "opacity-100", textFill: "#64748b", text: defaultText };
+  };
+
+  const getLayout = (config) => {
+    const { ru, du } = config;
+    const nodes = [];
+    const links = [];
+
+    // CU is always 1, put it on the right side
+    const cuX = 600;
+    const cuY = 175;
+    nodes.push({ id: 'CU-Core', x: cuX, y: cuY });
+
+    // DUs in the middle
+    const duX = 400;
+    const duSpacing = 350 / (du + 1); // Adjust spacing for better distribution
+    for (let i = 0; i < du; i++) {
+      const y = 30 + (i + 1) * duSpacing;
+      nodes.push({ id: `DU-${i + 1}`, x: duX, y });
+      // Link to CU (Index 0)
+      links.push({ source: nodes.length - 1, target: 0, label: 'F1/E2' });
+    }
+
+    // RUs on the left
+    const ruX = 150;
+    const ruSpacing = 350 / (ru + 1); // Adjust spacing for better distribution
+    for (let i = 0; i < ru; i++) {
+      const y = 30 + (i + 1) * ruSpacing;
+      nodes.push({ id: `RU-${i + 1}`, x: ruX, y });
+      // Connect each RU to a DU (distribute evenly)
+      const targetDuIndex = 1 + (i % du); // 1 is index of first DU
+      links.push({ source: nodes.length - 1, target: targetDuIndex, label: '5G NR' });
+    }
+
+    return { nodes, links };
   };
 
   return (
@@ -193,145 +243,42 @@ const App = () => {
               <div className="relative w-[700px] h-[350px]">
                 {/* Lines (Edges) */}
                 <svg className="absolute inset-0 w-full h-full pb-4">
-                  {/* RU-1 to DU-1 */}
                   {(() => {
-                    const p = getLinkProps('RU-1', '5G NR');
-                    return (
-                      <g>
-                        <line x1="100" y1="80" x2="250" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
-                        <text x="160" y="115" fill={p.textFill} fontSize="10" transform="rotate(35 160 115)" className="transition-colors duration-500">{p.text}</text>
-                      </g>
-                    );
-                  })()}
-
-                  {/* RU-2 to DU-1 */}
-                  {(() => {
-                    const p = getLinkProps('RU-2', '5G NR');
-                    return (
-                      <g>
-                        <line x1="100" y1="270" x2="250" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
-                        <text x="175" y="245" fill={p.textFill} fontSize="10" transform="rotate(-35 175 245)" className="transition-colors duration-500">{p.text}</text>
-                      </g>
-                    );
-                  })()}
-
-                  {/* DU-1 to DU-Core */}
-                  {(() => {
-                    const p = getLinkProps('DU-1', 'Lk: 10Gbps');
-                    return (
-                      <g>
-                        <line x1="250" y1="175" x2="400" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
-                        <text x="325" y="165" fill={p.textFill} fontSize="10" textAnchor="middle" className="transition-colors duration-500">{p.text}</text>
-                      </g>
-                    );
-                  })()}
-
-                  {/* DU-Core to CU-East */}
-                  {(() => {
-                    const p = getLinkProps('CU-East', 'F1 Interface');
-                    return (
-                      <g>
-                        <line x1="400" y1="175" x2="550" y2="80" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
-                        <text x="475" y="120" fill={p.textFill} fontSize="10" transform="rotate(-35 475 120)" className="transition-colors duration-500">{p.text}</text>
-                      </g>
-                    );
-                  })()}
-
-                  {/* DU-Core to CU-West */}
-                  {(() => {
-                    const p = getLinkProps('CU-West', 'F1/E2 Interface');
-                    return (
-                      <g>
-                        <line x1="400" y1="175" x2="550" y2="270" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
-                        <text x="475" y="240" fill={p.textFill} fontSize="10" transform="rotate(35 475 240)" className="transition-colors duration-500">{p.text}</text>
-                      </g>
-                    );
-                  })()}
-
-                  {/* Top RU-3 */}
-                  {(() => {
-                    const p = getLinkProps('RU-3', 'Fiber');
-                    return <line x1="300" y1="50" x2="400" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />;
-                  })()}
-
-                  {/* Bot RU-4 */}
-                  {(() => {
-                    const p = getLinkProps('RU-4', 'Fiber');
-                    return <line x1="300" y1="300" x2="400" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />;
+                    const layout = getLayout(appliedConfig);
+                    return layout.links.map((link, idx) => {
+                      const source = layout.nodes[link.source];
+                      const target = layout.nodes[link.target];
+                      const p = getLinkProps(target.id, link.label);
+                      return (
+                        <g key={idx}>
+                          <line x1={source.x} y1={source.y} x2={target.x} y2={target.y} stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
+                          <text x={(source.x + target.x) / 2} y={(source.y + target.y) / 2 - 10} fill={p.textFill} fontSize="10" textAnchor="middle" className="transition-colors duration-500">{p.text}</text>
+                        </g>
+                      );
+                    });
                   })()}
                 </svg>
 
                 {/* Nodes rendering using absolute positioning */}
+                {(() => {
+                  const layout = getLayout(appliedConfig);
+                  return layout.nodes.map((n, idx) => {
+                    const isRU = n.id.startsWith('RU');
+                    const isDU = n.id.startsWith('DU');
+                    const sizeClass = isRU ? 'w-16 h-16 text-xs' : (isDU ? (n.id.includes('Core') ? 'w-24 h-24 text-base' : 'w-20 h-20 text-sm') : 'w-20 h-20 text-sm');
+                    const borderClass = isRU ? 'border-[3px]' : (isDU && n.id.includes('Core') ? 'border-[5px]' : 'border-[4px]');
 
-                {/* Node RU-1 */}
-                <div className="absolute top-[80px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('RU-1', 'w-16 h-16 rounded-full bg-slate-900 border-[3px] flex items-center justify-center text-xs font-bold transition-all duration-300')}>RU-1</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-1').compute}%</span></div>
-                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('RU-1').spectrum} PRBs</span></div>
-                  </div>
-                </div>
-
-                {/* Node RU-2 */}
-                <div className="absolute top-[270px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('RU-2', 'w-16 h-16 rounded-full bg-slate-900 border-[3px] flex items-center justify-center text-xs font-bold transition-all duration-300')}>RU-2</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-2').compute}%</span></div>
-                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('RU-2').spectrum} PRBs</span></div>
-                  </div>
-                </div>
-
-                {/* Node DU-1 */}
-                <div className="absolute top-[175px] left-[250px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('DU-1', 'w-20 h-20 rounded-full bg-slate-900 border-[4px] flex items-center justify-center text-sm font-bold transition-all duration-300')}>DU-1</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('DU-1').compute}%</span></div>
-                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('DU-1').spectrum} PRBs</span></div>
-                  </div>
-                </div>
-
-                {/* Node DU-Core */}
-                <div className="absolute top-[175px] left-[400px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('DU-Core', 'w-24 h-24 rounded-full bg-slate-900 border-[5px] flex items-center justify-center text-base font-bold transition-all duration-300')}>DU-Core</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('DU-Core').compute}%</span></div>
-                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('DU-Core').spectrum} PRBs</span></div>
-                  </div>
-                </div>
-
-                {/* Node RU-3 */}
-                <div className="absolute top-[50px] left-[300px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('RU-3', 'w-12 h-12 rounded-full bg-slate-900 border-[2px] flex items-center justify-center text-[10px] font-bold transition-all duration-300')}>RU-3</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-3').compute}%</span></div>
-                  </div>
-                </div>
-
-                {/* Node RU-4 */}
-                <div className="absolute top-[300px] left-[300px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('RU-4', 'w-12 h-12 rounded-full bg-slate-900 border-[2px] flex items-center justify-center text-[10px] font-bold transition-all duration-300')}>RU-4</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-4').compute}%</span></div>
-                  </div>
-                </div>
-
-                {/* Node CU-East */}
-                <div className="absolute top-[80px] left-[550px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('CU-East', 'w-20 h-20 rounded-full bg-slate-900 border-[4px] flex items-center justify-center text-sm font-bold transition-all duration-300')}>CU-East</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('CU-East').compute}%</span></div>
-                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('CU-East').spectrum} PRBs</span></div>
-                  </div>
-                </div>
-
-                {/* Node CU-West */}
-                <div className="absolute top-[270px] left-[550px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
-                  <div className={getNodeColorClass('CU-West', 'w-20 h-20 rounded-full bg-slate-900 border-[4px] flex items-center justify-center text-sm font-bold transition-all duration-300')}>CU-West</div>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('CU-West').compute}%</span></div>
-                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('CU-West').spectrum} PRBs</span></div>
-                  </div>
-                </div>
+                    return (
+                      <div key={idx} className="absolute flex flex-col items-center group cursor-pointer z-30" style={{ top: n.y, left: n.x, transform: 'translate(-50%, -50%)' }}>
+                        <div className={getNodeColorClass(n.id, `${sizeClass} ${borderClass} rounded-full bg-slate-900 flex items-center justify-center font-bold transition-all duration-300`)}>{n.id}</div>
+                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData(n.id).compute}%</span></div>
+                          <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData(n.id).spectrum} PRBs</span></div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>
@@ -388,12 +335,18 @@ const App = () => {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="grid grid-cols-3 gap-3 mb-3">
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">Leader Node</div>
-                  <div className="text-emerald-400 font-mono text-xs flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    RU-1 (Active)
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">RUs Online</div>
+                  <div className="text-cyan-400 font-mono text-xs flex items-center gap-2">
+                    {appliedConfig.ru} Radio Units
+                  </div>
+                </div>
+                <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">DUs Active</div>
+                  <div className="text-green-400 font-mono text-xs flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    {appliedConfig.du} (Tol: {Math.floor((appliedConfig.du - 1) / 2)})
                   </div>
                 </div>
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
@@ -457,9 +410,23 @@ const App = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Active Nodes</label>
-                      <input type="number" value={configNodes} onChange={(e) => setConfigNodes(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">RUs (Radio Units)</label>
+                        <select value={configRu} onChange={(e) => setConfigRu(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono appearance-none cursor-pointer">
+                          {[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                            <option key={`ru-${num}`} value={num}>{num} RUs {num === 5 ? '(Default)' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">DUs (Distributed Units)</label>
+                        <select value={configDu} onChange={(e) => setConfigDu(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono appearance-none cursor-pointer">
+                          {[3, 5, 7, 9].map(num => (
+                            <option key={`du-${num}`} value={num}>{num} DUs {num === 5 ? '(Default)' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Max UEs / Cell</label>
@@ -487,14 +454,9 @@ const App = () => {
                         value={selectedSpikeNode}
                         onChange={(e) => setSelectedSpikeNode(e.target.value)}
                       >
-                        <option value="RU-1">RU-1</option>
-                        <option value="RU-2">RU-2</option>
-                        <option value="RU-3">RU-3</option>
-                        <option value="RU-4">RU-4</option>
-                        <option value="DU-1">DU-1</option>
-                        <option value="DU-Core">DU-Core</option>
-                        <option value="CU-East">CU-East</option>
-                        <option value="CU-West">CU-West</option>
+                        {getLayout(appliedConfig).nodes.map((n) => (
+                          <option key={n.id} value={n.id}>{n.id}</option>
+                        ))}
                       </select>
                       <button
                         onClick={fireSpikeCommand}
@@ -525,14 +487,9 @@ const App = () => {
                       value={selectedSpikeNode}
                       onChange={(e) => setSelectedSpikeNode(e.target.value)}
                     >
-                      <option value="RU-1">RU-1</option>
-                      <option value="RU-2">RU-2</option>
-                      <option value="RU-3">RU-3</option>
-                      <option value="RU-4">RU-4</option>
-                      <option value="DU-1">DU-1</option>
-                      <option value="DU-Core">DU-Core</option>
-                      <option value="CU-East">CU-East</option>
-                      <option value="CU-West">CU-West</option>
+                      {getLayout(appliedConfig).nodes.map((n) => (
+                        <option key={n.id} value={n.id}>{n.id}</option>
+                      ))}
                     </select>
                   </div>
 
