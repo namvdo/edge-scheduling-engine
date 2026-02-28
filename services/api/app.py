@@ -77,12 +77,20 @@ async def log_generator():
         ul_percent = 100 - dl_percent
 
         # Node-specific resource allocation (Compute, Storage Buffer, Spectrum)
-        nodes = ["RU-1", "RU-2", "DU-Core"]
+        nodes = ["RU-1", "RU-2", "RU-3", "RU-4", "DU-1", "DU-Core", "CU-East", "CU-West"]
         node_metrics = []
         for n in nodes:
+            # Simulate occasional load spikes for certain nodes to show dynamic balancing
+            is_congested = random.random() > 0.85
+            base_compute = int(random.uniform(75, 99)) if is_congested else int(random.uniform(20, 65))
+            
+            # CU-East is typically higher load in the demo
+            if n == "CU-East":
+                base_compute = max(60, base_compute + int(random.uniform(10, 30)))
+                
             node_metrics.append({
                 "name": n,
-                "compute": int(random.uniform(20, 95)),
+                "compute": min(99, base_compute),
                 "storage": int(random.uniform(10, 80)),      # representation of buffer fill
                 "spectrum": int(random.uniform(50, 400))     # allocated PRBs / bandwidth
             })

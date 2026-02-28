@@ -71,6 +71,37 @@ const App = () => {
     }
   }, [lastJsonMessage]);
 
+  const getNodeColorClass = (nodeName, defaultClasses) => {
+    const latest = metrics[metrics.length - 1];
+    if (!latest || !latest.node_allocations) return `${defaultClasses} border-emerald-500 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]`;
+
+    const node = latest.node_allocations.find(n => n.name === nodeName);
+    if (!node) return `${defaultClasses} border-emerald-500 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]`;
+
+    if (node.compute > 85) {
+      return `${defaultClasses} border-rose-500 text-rose-200 shadow-[0_0_30px_rgba(244,63,94,0.6)] animate-[pulse_2s_infinite]`;
+    } else if (node.compute > 60) {
+      return `${defaultClasses} border-amber-500 text-amber-200 shadow-[0_0_25px_rgba(245,158,11,0.4)]`;
+    }
+    return `${defaultClasses} border-emerald-500 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.4)]`;
+  };
+
+  const getTooltipData = (nodeName) => {
+    const latest = metrics[metrics.length - 1];
+    if (!latest || !latest.node_allocations) return { compute: 0, spectrum: 0, storage: 0 };
+    return latest.node_allocations.find(n => n.name === nodeName) || { compute: 0, spectrum: 0, storage: 0 };
+  };
+
+  const getLinkProps = (nodeName, defaultText) => {
+    const data = getTooltipData(nodeName);
+    if (data.compute > 85) {
+      return { stroke: "#f43f5e", strokeWidth: 6, opacity: "opacity-80", textFill: "#f43f5e", text: `Util: ${data.compute}%` };
+    } else if (data.compute > 60) {
+      return { stroke: "#f59e0b", strokeWidth: 4, opacity: "opacity-70", textFill: "#f59e0b", text: `Util: ${data.compute}%` };
+    }
+    return { stroke: "#334155", strokeWidth: 3, opacity: "opacity-100", textFill: "#64748b", text: defaultText };
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 p-4 font-sans selection:bg-cyan-500/30">
@@ -133,86 +164,142 @@ const App = () => {
                 {/* Lines (Edges) */}
                 <svg className="absolute inset-0 w-full h-full pb-4">
                   {/* RU-1 to DU-1 */}
-                  <line x1="100" y1="80" x2="250" y2="175" stroke="#334155" strokeWidth="4" />
-                  <text x="160" y="115" fill="#64748b" fontSize="10" transform="rotate(35 160 115)">5G NR</text>
+                  {(() => {
+                    const p = getLinkProps('RU-1', '5G NR');
+                    return (
+                      <g>
+                        <line x1="100" y1="80" x2="250" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
+                        <text x="160" y="115" fill={p.textFill} fontSize="10" transform="rotate(35 160 115)" className="transition-colors duration-500">{p.text}</text>
+                      </g>
+                    );
+                  })()}
 
                   {/* RU-2 to DU-1 */}
-                  <line x1="100" y1="270" x2="250" y2="175" stroke="#0ea5e9" strokeWidth="10" className="opacity-60" /> {/* Heavy Utilization */}
-                  <text x="175" y="245" fill="#0ea5e9" fontSize="10" transform="rotate(-35 175 245)">Util: 89%</text>
+                  {(() => {
+                    const p = getLinkProps('RU-2', '5G NR');
+                    return (
+                      <g>
+                        <line x1="100" y1="270" x2="250" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
+                        <text x="175" y="245" fill={p.textFill} fontSize="10" transform="rotate(-35 175 245)" className="transition-colors duration-500">{p.text}</text>
+                      </g>
+                    );
+                  })()}
 
                   {/* DU-1 to DU-Core */}
-                  <line x1="250" y1="175" x2="400" y2="175" stroke="#334155" strokeWidth="3" />
-                  <text x="325" y="165" fill="#64748b" fontSize="10" textAnchor="middle">Lk: 10Gbps</text>
+                  {(() => {
+                    const p = getLinkProps('DU-1', 'Lk: 10Gbps');
+                    return (
+                      <g>
+                        <line x1="250" y1="175" x2="400" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
+                        <text x="325" y="165" fill={p.textFill} fontSize="10" textAnchor="middle" className="transition-colors duration-500">{p.text}</text>
+                      </g>
+                    );
+                  })()}
 
                   {/* DU-Core to CU-East */}
-                  <line x1="400" y1="175" x2="550" y2="80" stroke="#f43f5e" strokeWidth="6" className="opacity-80" /> {/* Congested */}
-                  <text x="475" y="120" fill="#f43f5e" fontSize="10" transform="rotate(-35 475 120)">Util: 95%</text>
+                  {(() => {
+                    const p = getLinkProps('CU-East', 'F1 Interface');
+                    return (
+                      <g>
+                        <line x1="400" y1="175" x2="550" y2="80" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
+                        <text x="475" y="120" fill={p.textFill} fontSize="10" transform="rotate(-35 475 120)" className="transition-colors duration-500">{p.text}</text>
+                      </g>
+                    );
+                  })()}
 
                   {/* DU-Core to CU-West */}
-                  <line x1="400" y1="175" x2="550" y2="270" stroke="#334155" strokeWidth="4" />
-                  <text x="475" y="240" fill="#64748b" fontSize="10" transform="rotate(35 475 240)">F1/E2 Interface</text>
+                  {(() => {
+                    const p = getLinkProps('CU-West', 'F1/E2 Interface');
+                    return (
+                      <g>
+                        <line x1="400" y1="175" x2="550" y2="270" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />
+                        <text x="475" y="240" fill={p.textFill} fontSize="10" transform="rotate(35 475 240)" className="transition-colors duration-500">{p.text}</text>
+                      </g>
+                    );
+                  })()}
 
-                  {/* Top RU */}
-                  <line x1="300" y1="50" x2="400" y2="175" stroke="#334155" strokeWidth="2" />
-                  {/* Bot RU */}
-                  <line x1="300" y1="300" x2="400" y2="175" stroke="#334155" strokeWidth="2" />
+                  {/* Top RU-3 */}
+                  {(() => {
+                    const p = getLinkProps('RU-3', 'Fiber');
+                    return <line x1="300" y1="50" x2="400" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />;
+                  })()}
+
+                  {/* Bot RU-4 */}
+                  {(() => {
+                    const p = getLinkProps('RU-4', 'Fiber');
+                    return <line x1="300" y1="300" x2="400" y2="175" stroke={p.stroke} strokeWidth={p.strokeWidth} className={`transition-all duration-500 ${p.opacity}`} />;
+                  })()}
                 </svg>
 
                 {/* Nodes rendering using absolute positioning */}
 
-                {/* Node RU101-G (Green) */}
-                <div className="absolute top-[80px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-slate-900 border-[3px] border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] flex items-center justify-center text-xs font-bold text-slate-300">RU-1</div>
-                </div>
-
-                {/* Node RU102-G (Green) */}
-                <div className="absolute top-[270px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-slate-900 border-[3px] border-emerald-500 flex items-center justify-center text-xs font-bold text-slate-300">RU-2</div>
-                </div>
-
-                {/* Node DU101-G (Green) */}
-                <div className="absolute top-[175px] left-[250px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-20 h-20 rounded-full bg-slate-900 border-[4px] border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center text-sm font-bold text-slate-300 relative group">
-                    DU-1
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-950 border border-slate-700 py-1 px-2 rounded text-[10px] text-slate-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                      BW 1.3Gbps | Lat 4ms
-                    </div>
+                {/* Node RU-1 */}
+                <div className="absolute top-[80px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('RU-1', 'w-16 h-16 rounded-full bg-slate-900 border-[3px] flex items-center justify-center text-xs font-bold transition-all duration-300')}>RU-1</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-1').compute}%</span></div>
+                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('RU-1').spectrum} PRBs</span></div>
                   </div>
                 </div>
 
-                {/* Node DU105-Y (Yellow - Core) */}
-                <div className="absolute top-[175px] left-[400px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-24 h-24 rounded-full bg-slate-900 border-[5px] border-amber-500 shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center justify-center text-base font-bold text-slate-200">
-                    DU-Core
+                {/* Node RU-2 */}
+                <div className="absolute top-[270px] left-[100px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('RU-2', 'w-16 h-16 rounded-full bg-slate-900 border-[3px] flex items-center justify-center text-xs font-bold transition-all duration-300')}>RU-2</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-2').compute}%</span></div>
+                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('RU-2').spectrum} PRBs</span></div>
                   </div>
                 </div>
 
-                {/* Top RU-3 (Green) */}
-                <div className="absolute top-[50px] left-[300px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-full bg-slate-900 border-[2px] border-emerald-500 flex items-center justify-center text-[10px] font-bold text-slate-400">RU-3</div>
-                </div>
-
-                {/* Bottom RU-4 (Green) */}
-                <div className="absolute top-[300px] left-[300px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-full bg-slate-900 border-[2px] border-emerald-500 flex items-center justify-center text-[10px] font-bold text-slate-400">RU-4</div>
-                </div>
-
-                {/* Node CU202-R (Red - Congested) */}
-                <div className="absolute top-[80px] left-[550px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-20 h-20 rounded-full bg-slate-900 border-[4px] border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.6)] animate-[pulse_2s_infinite] flex items-center justify-center text-sm font-bold text-rose-200 cursor-pointer">
-                    CU-East
-                  </div>
-                  {/* Tooltip visible permanently for demo */}
-                  <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md z-20">
-                    <div className="font-bold text-rose-400 border-b border-slate-800 pb-1 mb-1">Alert: High Load</div>
-                    <div className="text-slate-400">Load: <span className="text-rose-400 font-mono">98%</span></div>
+                {/* Node DU-1 */}
+                <div className="absolute top-[175px] left-[250px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('DU-1', 'w-20 h-20 rounded-full bg-slate-900 border-[4px] flex items-center justify-center text-sm font-bold transition-all duration-300')}>DU-1</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('DU-1').compute}%</span></div>
+                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('DU-1').spectrum} PRBs</span></div>
                   </div>
                 </div>
 
-                {/* Node CU208-G (Green) */}
-                <div className="absolute top-[270px] left-[550px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
-                  <div className="w-20 h-20 rounded-full bg-slate-900 border-[4px] border-emerald-500 flex items-center justify-center text-sm font-bold text-slate-300">
-                    CU-West
+                {/* Node DU-Core */}
+                <div className="absolute top-[175px] left-[400px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('DU-Core', 'w-24 h-24 rounded-full bg-slate-900 border-[5px] flex items-center justify-center text-base font-bold transition-all duration-300')}>DU-Core</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('DU-Core').compute}%</span></div>
+                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('DU-Core').spectrum} PRBs</span></div>
+                  </div>
+                </div>
+
+                {/* Node RU-3 */}
+                <div className="absolute top-[50px] left-[300px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('RU-3', 'w-12 h-12 rounded-full bg-slate-900 border-[2px] flex items-center justify-center text-[10px] font-bold transition-all duration-300')}>RU-3</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-3').compute}%</span></div>
+                  </div>
+                </div>
+
+                {/* Node RU-4 */}
+                <div className="absolute top-[300px] left-[300px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('RU-4', 'w-12 h-12 rounded-full bg-slate-900 border-[2px] flex items-center justify-center text-[10px] font-bold transition-all duration-300')}>RU-4</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('RU-4').compute}%</span></div>
+                  </div>
+                </div>
+
+                {/* Node CU-East */}
+                <div className="absolute top-[80px] left-[550px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('CU-East', 'w-20 h-20 rounded-full bg-slate-900 border-[4px] flex items-center justify-center text-sm font-bold transition-all duration-300')}>CU-East</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('CU-East').compute}%</span></div>
+                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('CU-East').spectrum} PRBs</span></div>
+                  </div>
+                </div>
+
+                {/* Node CU-West */}
+                <div className="absolute top-[270px] left-[550px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-30">
+                  <div className={getNodeColorClass('CU-West', 'w-20 h-20 rounded-full bg-slate-900 border-[4px] flex items-center justify-center text-sm font-bold transition-all duration-300')}>CU-West</div>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData('CU-West').compute}%</span></div>
+                    <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData('CU-West').spectrum} PRBs</span></div>
                   </div>
                 </div>
               </div>
