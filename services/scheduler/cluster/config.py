@@ -8,20 +8,19 @@ from dataclasses import dataclass
 class ClusterConfig:
     node_id: str
     consensus_enabled: bool
-    etcd_endpoints: list[str]
-    etcd_dial_timeout_sec: float
-    lease_ttl_sec: int
+    raft_peers: list[str]
+    raft_port: int
+    raft_address: str
     state_prefix: str
-
 
     @classmethod
     def from_env(cls) -> "ClusterConfig":
-        endpoints = [e.strip() for e in os.getenv("ETCD_ENDPOINTS", "localhost:2379").split(",") if e.strip()]
+        peers = [e.strip() for e in os.getenv("RAFT_PEERS", "").split(",") if e.strip()]
         return cls(
             node_id=os.getenv("NODE_ID", "scheduler-1"),
             consensus_enabled=os.getenv("CONSENSUS_ENABLED", "false").lower() == "true",
-            etcd_endpoints=endpoints,
-            etcd_dial_timeout_sec=float(os.getenv("ETCD_DIAL_TIMEOUT_SEC", "2.0")),
-            lease_ttl_sec=int(os.getenv("LEASE_TTL_SEC", "5")),
+            raft_peers=peers,
+            raft_port=int(os.getenv("RAFT_PORT", "50052")),
+            raft_address=os.getenv("RAFT_ADDRESS", "localhost:50052"),
             state_prefix=os.getenv("STATE_PREFIX", "/edge-scheduler"),
         )

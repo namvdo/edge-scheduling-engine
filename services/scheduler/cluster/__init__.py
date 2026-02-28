@@ -5,6 +5,8 @@ from .election import LeaderElector
 from .etcd_client import EtcdClient
 from .recovery import RecoveryManager
 from .state_store import ReplicatedStateStore
+from .raft_node import RaftNode, RaftState, LogEntry
+from .raft_server import RaftGrpcServer
 
 __all__ = [
     "ClusterConfig",
@@ -12,4 +14,8 @@ __all__ = [
     "EtcdClient",
     "RecoveryManager",
     "ReplicatedStateStore",
+    "RaftNode",
+    "RaftState",
+    "LogEntry",
+    "RaftGrpcServer",
 ]

@@ -3,7 +3,10 @@ from __future__ import annotations
 import os
 import sys
 import time
+import logging
 from concurrent import futures
+
+logging.basicConfig(level=logging.INFO)
 
 import grpc
 
@@ -25,12 +28,15 @@ import scheduler_pb2
 import scheduler_pb2_grpc
 import telemetry_pb2
 
+import json
+import torch
+import numpy as np
+from services.scheduler.ml.ddpg_agent import DDPGAgent
 from services.scheduler.cluster import (
     ClusterConfig,
-    EtcdClient,
-    LeaderElector,
-    RecoveryManager,
-    ReplicatedStateStore,
+    RaftNode,
+    RaftState,
+    RaftGrpcServer,
 )
 
 
@@ -81,25 +87,36 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
         self.cluster_cfg = ClusterConfig.from_env()
 
         self.consensus_enabled = False
-        self.etcd: EtcdClient | None = None
-        self.elector: LeaderElector | None = None
-        self.store: ReplicatedStateStore | None = None
-        self.recovery: RecoveryManager | None = None
+        self.raft_node: RaftNode | None = None
+        self.raft_server: RaftGrpcServer | None = None
+
+        self.ddpg_agent = DDPGAgent(state_dim=4, action_dim=1, max_action=1.0, device="cpu")
+        model_path = os.path.join(PROJECT_ROOT, "models", "ddpg_actor.pth")
+        if os.path.exists(model_path):
+            self.ddpg_agent.actor.load_state_dict(torch.load(model_path, map_location="cpu"))
+            print(f"[ML] Loaded DDPG Actor from {model_path}")
+        else:
+            print("[ML] No trained DDPG model found, using random weights")
 
         if self.cluster_cfg.consensus_enabled:
             try:
-                self.etcd = EtcdClient(
-                    self.cluster_cfg.etcd_endpoints,
-                    self.cluster_cfg.etcd_dial_timeout_sec,
+                peers = [p for p in self.cluster_cfg.raft_peers if p != self.cluster_cfg.raft_address]
+                self.raft_node = RaftNode(
+                    node_id=self.cluster_cfg.node_id,
+                    peers=peers,
+                    state_prefix=self.cluster_cfg.state_prefix
                 )
-                self.etcd.connect()
-                self.elector = LeaderElector(self.cluster_cfg, self.etcd)
-                self.store = ReplicatedStateStore(self.cluster_cfg.state_prefix, self.etcd)
-                self.recovery = RecoveryManager(self.store)
+                self.raft_server = RaftGrpcServer(
+                    node=self.raft_node,
+                    port=self.cluster_cfg.raft_port
+                )
+                
+                self.raft_node.start()
+                self.raft_server.start()
                 self.consensus_enabled = True
                 print(
                     f"[CLUSTER] consensus enabled node={self.cluster_cfg.node_id} "
-                    f"etcd={','.join(self.cluster_cfg.etcd_endpoints)}"
+                    f"raft_peers={','.join(self.cluster_cfg.raft_peers)}"
                 )
             except Exception as exc:
                 print(f"[CLUSTER] consensus disabled due to startup error: {exc}")
@@ -107,26 +124,26 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
     def _load_recovered_version(self, cell_id: str) -> None:
         if cell_id in self._decision_versions:
             return
-        if self.consensus_enabled and self.recovery:
-            recovered = self.recovery.recover_latest_version(cell_id)
-            self._decision_versions[cell_id] = recovered
-            if recovered > 0:
-                print(f"[RECOVERY] cell={cell_id} recovered_version={recovered}")
-        else:
-            self._decision_versions[cell_id] = 0
+        recovered = 0
+        if self.consensus_enabled and self.raft_node:
+            latest_str = self.raft_node.get_latest_committed()
+            if latest_str:
+                try:
+                    payload = json.loads(latest_str)
+                    if payload.get("cell_id") == cell_id:
+                        recovered = payload.get("decision_version", 0)
+                except Exception:
+                    pass
+        self._decision_versions[cell_id] = recovered
+        if recovered > 0:
+            print(f"[RECOVERY] cell={cell_id} recovered_version={recovered}")
 
     def _try_lead_cell(self, cell_id: str) -> bool:
-        if not self.consensus_enabled or not self.elector:
+        if not self.consensus_enabled or not self.raft_node:
             return True
-        acquired, lease = self.elector.try_acquire(cell_id)
-        if acquired:
-            try:
-                lease.refresh()
-            except Exception:
-                pass
+        if self.raft_node.state == RaftState.LEADER:
             return True
-        leader = self.elector.current_leader(cell_id)
-        print(f"[FOLLOWER] cell={cell_id} local={self.cluster_cfg.node_id} leader={leader}")
+        print(f"[FOLLOWER] cell={cell_id} local={self.cluster_cfg.node_id} is follower")
         return False
 
     def Ping(self, request, context):
@@ -138,8 +155,9 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
             self._load_recovered_version(cell.cell_id)
 
             if not self._try_lead_cell(cell.cell_id):
-                latest = self.store.get_latest(cell.cell_id) if self.store else None
-                if latest:
+                latest_str = self.raft_node.get_latest_committed() if self.raft_node else None
+                latest = json.loads(latest_str) if latest_str else None
+                if latest and latest.get("cell_id") == cell.cell_id:
                     # Return last committed decision to avoid diverging output on followers.
                     yield scheduler_pb2.ScheduleDecision(
                         cell_id=cell.cell_id,
@@ -163,7 +181,19 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
             self._decision_versions[cell.cell_id] += 1
             decision_version = self._decision_versions[cell.cell_id]
 
-            dl_pct, ul_pct = dynamic_tdd(cell)
+            if len(cell.ues) > 0:
+                dl_buf = sum(u.dl_buffer_bytes for u in cell.ues) / len(cell.ues)
+                ul_buf = sum(u.ul_buffer_bytes for u in cell.ues) / len(cell.ues)
+                cqi = sum(u.cqi for u in cell.ues) / len(cell.ues)
+                sinr = sum(u.sinr_db for u in cell.ues) / len(cell.ues)
+                state = np.array([dl_buf/50000.0, ul_buf/30000.0, cqi/15.0, sinr/25.0], dtype=np.float32)
+                action = self.ddpg_agent.select_action(state, add_noise=False)
+                dl_pct = int(action[0] * 100)
+                dl_pct = max(10, min(90, dl_pct))
+                ul_pct = 100 - dl_pct
+            else:
+                dl_pct, ul_pct = 50, 50
+
             allocs = simple_pf_allocate(cell)
 
             decision = scheduler_pb2.ScheduleDecision(
@@ -177,21 +207,19 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
                 ],
             )
 
-            if self.consensus_enabled and self.store:
-                self.store.put_latest(
-                    cell.cell_id,
-                    {
-                        "cell_id": cell.cell_id,
-                        "epoch": int(cell.epoch),
-                        "decision_version": decision_version,
-                        "dl_percent": dl_pct,
-                        "ul_percent": ul_pct,
-                        "allocations": [
-                            {"ue_id": ue_id, "prbs": prbs, "weight": 0.0}
-                            for ue_id, prbs in allocs
-                        ],
-                    },
-                )
+            if self.consensus_enabled and self.raft_node:
+                decision_dict = {
+                    "cell_id": cell.cell_id,
+                    "epoch": int(cell.epoch),
+                    "decision_version": decision_version,
+                    "dl_percent": dl_pct,
+                    "ul_percent": ul_pct,
+                    "allocations": [
+                        {"ue_id": ue_id, "prbs": prbs, "weight": 0.0}
+                        for ue_id, prbs in allocs
+                    ],
+                }
+                self.raft_node.propose(json.dumps(decision_dict))
 
             print(
                 f"[SCHED] cell={cell.cell_id} epoch={cell.epoch} "
