@@ -26,6 +26,8 @@ const App = () => {
 
   // Config state
   const [syncInterval, setSyncInterval] = useState(10);
+  const [configNodes, setConfigNodes] = useState(5);
+  const [configUes, setConfigUes] = useState(250);
   const [isApplying, setIsApplying] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -36,7 +38,12 @@ const App = () => {
 
   const handleApplyConfig = () => {
     setIsApplying(true);
-    setLogs(prev => [{ type: 'SYS', level: 'INFO', msg: `Applied new configuration. Sync interval set to ${syncInterval}s.`, node: 'WebUI', ts: new Date().toLocaleTimeString('en-US', { hour12: false }) }, ...prev].slice(0, 10));
+    sendJsonMessage({
+      type: "UPDATE_CONFIG",
+      nodes: configNodes,
+      max_ues: configUes
+    });
+    setLogs(prev => [{ type: 'SYS', level: 'INFO', msg: `Applied new configuration. Sync interval set to ${syncInterval}s. Active nodes: ${configNodes}`, node: 'WebUI', ts: new Date().toLocaleTimeString('en-US', { hour12: false }) }, ...prev].slice(0, 10));
     setTimeout(() => setIsApplying(false), 800);
   };
 
@@ -126,7 +133,6 @@ const App = () => {
     return { stroke: "#334155", strokeWidth: 3, opacity: "opacity-100", textFill: "#64748b", text: defaultText };
   };
 
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 p-4 font-sans selection:bg-cyan-500/30">
 
@@ -162,7 +168,7 @@ const App = () => {
         <div className="col-span-12 xl:col-span-8 flex flex-col gap-6">
 
           {/* Topology Map Panel */}
-          <div className="bg-slate-900/50 rounded-xl border border-slate-800 p-4 relative overflow-hidden backdrop-blur-sm shadow-xl min-h-[450px]">
+          <div className="bg-slate-900/50 rounded-xl border border-slate-800 p-4 relative overflow-hidden backdrop-blur-sm shadow-xl h-[800px]">
             <div className="flex justify-between items-center mb-4 relative z-10">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Wifi className="w-5 h-5 text-cyan-500" />
@@ -176,14 +182,14 @@ const App = () => {
             </div>
 
             {/* SVG Topology Visualization Background */}
-            <div className="absolute inset-0 top-12 flex items-center justify-center pointer-events-none opacity-20">
+            <div className="absolute inset-0 top-12 flex items-center justify-center pointer-events-none opacity-20 z-0">
               <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <path d="M0,0 L100,100 M100,0 L0,100 M50,0 L50,100 M0,50 L100,50" stroke="#334155" strokeWidth="0.5" strokeDasharray="2,2" />
               </svg>
             </div>
 
             {/* Simulated Nodes & Links */}
-            <div className="absolute inset-0 top-16 flex items-center justify-center">
+            <div className="absolute inset-0 top-16 flex items-center justify-center z-10 transition-transform duration-500 scale-150 lg:scale-[1.7] origin-center">
               <div className="relative w-[700px] h-[350px]">
                 {/* Lines (Edges) */}
                 <svg className="absolute inset-0 w-full h-full pb-4">
@@ -328,11 +334,10 @@ const App = () => {
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* Bottom Panels Row (DDPG & RAFT) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-[250px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[160px] shrink-0">
 
             {/* DDPG Training Monitor */}
             <div className="bg-slate-900/40 rounded-xl border border-slate-800 p-4 flex flex-col shadow-lg backdrop-blur-sm">
@@ -344,11 +349,11 @@ const App = () => {
                 <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1">
                   <button
                     onClick={() => setTrainingMode('Train')}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${trainingMode === 'Train' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${trainingMode === 'Train' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
                   >Train</button>
                   <button
                     onClick={() => setTrainingMode('Eval')}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${trainingMode === 'Eval' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${trainingMode === 'Eval' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
                   >Evaluate</button>
                 </div>
               </div>
@@ -358,7 +363,7 @@ const App = () => {
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-cyan-500"></span>Total Reward</span>
               </div>
 
-              <div className="flex-1 w-full min-h-[150px]">
+              <div className="flex-1 w-full min-h-[70px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={ddpgData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
                     <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={40} />
@@ -400,7 +405,7 @@ const App = () => {
                 </div>
               </div>
 
-              <div className="flex-1 bg-slate-950/80 rounded-lg p-2.5 overflow-hidden border border-slate-800/80 font-mono text-[10px] space-y-2 relative shadow-inner">
+              <div className="flex-1 bg-slate-950/80 rounded-lg p-2 overflow-hidden border border-slate-800/80 font-mono text-[10px] space-y-1 relative shadow-inner">
                 {logs.map((log, i) => (
                   <div key={i} className={`pl-4 border-l-2 ml-1 flex items-center gap-1 ${log.level === 'CRIT' || log.level === 'WARN' ? 'text-rose-400 border-rose-900/50' : 'text-slate-400 border-slate-800'}`}>
                     {log.level === 'CRIT' && <AlertTriangle className="w-3 h-3" />}
@@ -454,11 +459,11 @@ const App = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Active Nodes</label>
-                      <input type="number" defaultValue={5} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono" />
+                      <input type="number" value={configNodes} onChange={(e) => setConfigNodes(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono" />
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Max UEs / Cell</label>
-                      <input type="number" defaultValue={250} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono" />
+                      <input type="number" value={configUes} onChange={(e) => setConfigUes(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono" />
                     </div>
                   </div>
 
@@ -709,7 +714,7 @@ const App = () => {
         </div>
       </div>
 
-    </div>
+    </div >
   );
 };
 
