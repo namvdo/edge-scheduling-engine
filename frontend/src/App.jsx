@@ -3,14 +3,14 @@ import useWebSocket from 'react-use-websocket';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Activity, Server, Cpu, Network, Wifi, AlertTriangle, CheckCircle2, Settings, History, Info } from 'lucide-react';
 
-const generateDDPGData = () => {
-  let r = -2000;
+const generateDDPGData = (mode) => {
+  let r = mode === 'Train' ? -2000 : 500;
   return Array.from({ length: 50 }, (_, i) => {
-    r += Math.random() * 100;
+    r += mode === 'Train' ? Math.random() * 100 : Math.random() * 20 - 10;
     return {
       episode: i,
-      actorLoss: Math.random() * -0.015,
-      criticLoss: Math.random() * 0.05,
+      actorLoss: mode === 'Train' ? Math.random() * -0.015 : Math.random() * -0.002 - 0.005,
+      criticLoss: mode === 'Train' ? Math.random() * 0.05 : Math.random() * 0.01 + 0.01,
       reward: r,
     };
   });
@@ -21,8 +21,32 @@ const App = () => {
   // Fill initial buffer to render chart shapes
   const [metrics, setMetrics] = useState(Array.from({ length: 20 }, (_, i) => ({ time: i, throughput: 0, latency: 0, utilization: 0, users: 0 })));
   const [logs, setLogs] = useState([]);
-  const [ddpgData, setDdpgData] = useState(generateDDPGData());
   const [trainingMode, setTrainingMode] = useState('Train');
+  const [ddpgData, setDdpgData] = useState(generateDDPGData('Train'));
+
+  // Config state
+  const [syncInterval, setSyncInterval] = useState(10);
+  const [isApplying, setIsApplying] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Handle DDPG Tab Switch
+  useEffect(() => {
+    setDdpgData(generateDDPGData(trainingMode));
+  }, [trainingMode]);
+
+  const handleApplyConfig = () => {
+    setIsApplying(true);
+    setLogs(prev => [{ type: 'SYS', level: 'INFO', msg: `Applied new configuration. Sync interval set to ${syncInterval}s.`, node: 'WebUI', ts: new Date().toLocaleTimeString('en-US', { hour12: false }) }, ...prev].slice(0, 10));
+    setTimeout(() => setIsApplying(false), 800);
+  };
+
+  const handleExportCSV = () => {
+    setIsExporting(true);
+    setTimeout(() => {
+      setIsExporting(false);
+      alert("Historical data exported to downloads folder!");
+    }, 1000);
+  };
 
   const WS_URL = 'ws://127.0.0.1:8000/ws';
   const { lastJsonMessage, readyState } = useWebSocket(WS_URL, {
@@ -330,13 +354,18 @@ const App = () => {
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
                       <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Cloud Sync Interval</label>
-                      <span className="text-xs text-cyan-400 font-mono">10s</span>
+                      <span className="text-xs text-cyan-400 font-mono">{syncInterval}s</span>
                     </div>
-                    <input type="range" min="1" max="60" defaultValue="10" className="w-full accent-cyan-500 h-1.5 rounded-lg appearance-none bg-slate-800 cursor-pointer" />
+                    <input type="range" min="1" max="60" value={syncInterval} onChange={(e) => setSyncInterval(e.target.value)} className="w-full accent-cyan-500 h-1.5 rounded-lg appearance-none bg-slate-800 cursor-pointer" />
                   </div>
 
-                  <button className="w-full mt-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium py-2.5 rounded-lg shadow-[0_4px_15px_rgba(6,182,212,0.25)] transition-all flex justify-center items-center gap-2 border border-cyan-400/20 active:scale-[0.98]">
-                    <Settings className="w-4 h-4" /> Apply Configuration
+                  <button
+                    onClick={() => handleApplyConfig()}
+                    disabled={isApplying}
+                    className={`w-full mt-2 font-medium py-2.5 rounded-lg shadow-[0_4px_15px_rgba(6,182,212,0.25)] transition-all flex justify-center items-center gap-2 border border-cyan-400/20 active:scale-[0.98] ${isApplying ? 'bg-cyan-800 text-cyan-400 cursor-wait' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white'}`}
+                  >
+                    {isApplying ? <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div> : <Settings className="w-4 h-4" />}
+                    {isApplying ? 'Applying...' : 'Apply Configuration'}
                   </button>
                 </div>
               )}
@@ -344,7 +373,9 @@ const App = () => {
                 <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-3 py-8">
                   <History className="w-8 h-8 opacity-50" />
                   <p className="text-sm">Historical Replay Mode Ready</p>
-                  <button className="px-4 py-1.5 border border-slate-700 rounded-md text-xs hover:bg-slate-800 transition-colors">Export CSV</button>
+                  <button onClick={handleExportCSV} disabled={isExporting} className="px-4 py-1.5 border border-slate-700 rounded-md text-xs hover:bg-slate-800 transition-colors">
+                    {isExporting ? 'Exporting...' : 'Export CSV'}
+                  </button>
                 </div>
               )}
             </div>
