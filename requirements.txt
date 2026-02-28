@@ -4,3 +4,4 @@ python-dotenv
 etcd3
 torch
 numpy
+pyspark

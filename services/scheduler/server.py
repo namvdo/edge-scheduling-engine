@@ -38,6 +38,7 @@ from services.scheduler.cluster import (
     RaftState,
     RaftGrpcServer,
 )
+from services.scheduler.middleware.logger import TelemetryLogger
 
 
 def simple_pf_allocate(cell: telemetry_pb2.CellTelemetry):
@@ -97,6 +98,8 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
             print(f"[ML] Loaded DDPG Actor from {model_path}")
         else:
             print("[ML] No trained DDPG model found, using random weights")
+
+        self.telemetry_logger = TelemetryLogger()
 
         if self.cluster_cfg.consensus_enabled:
             try:
@@ -220,6 +223,9 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
                     ],
                 }
                 self.raft_node.propose(json.dumps(decision_dict))
+
+            # Middleware: Log telemetry and decisions for Big Data Analytics
+            self.telemetry_logger.log_decision(cell, decision, dl_pct, ul_pct)
 
             print(
                 f"[SCHED] cell={cell.cell_id} epoch={cell.epoch} "
