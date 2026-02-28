@@ -46,7 +46,20 @@ This project implements core distributed systems concepts including consensus al
    # On Windows: .\tools\gen_protos.ps1
    ```
 
-### Running the System (Native Local Execution)
+### Automated Local Startup
+
+To launch the entire 5G Edge Scheduling Engine stack (Raft Cluster, Simulator, Orchestrator, WebSocket Gateway, and React UI) simultaneously in the background:
+
+```bash
+chmod +x start_system.sh
+./start_system.sh
+```
+
+Then open your browser to `http://localhost:5173`. When finished testing, press `Ctrl+C` in the terminal to gracefully terminate all microservices.
+
+---
+
+### Manual Local Startup (Development & Debugging)
 
 1. **Start a 3-Node Raft Cluster (Terminal 1):**
    ```bash
