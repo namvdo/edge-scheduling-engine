@@ -14,6 +14,8 @@ This project implements core distributed systems concepts including consensus al
    A data pipeline that ingests gigabytes of centralized telemetry JSONL logs. It utilizes Apache Spark to execute tumbling time-window aggregations, isolating throughput demands per 5G network slice (eMBB, URLLC, mMTC). 
 5. **Global Cloud Orchestrator (`services/cloud-orchestrator`)**
    A slow-loop orchestrator that reads historical PySpark analytics to detect slice starvation. It deploys new Quality of Service weights downward to the fast-loop Edge Schedulers via gRPC `UpdateSlicePolicy` hooks.
+6. **React Dashboard Interface (`frontend`)**
+   Features a live animated SVG Network Topology map, real-time DDPG training monitors, scrolling RAFT consensus logs, and responsive Recharts for bandwidth capabilities.
 
 ---
 
@@ -104,3 +106,17 @@ The project uses `pytest` to definitively validate the complex mathematical algo
 2. **Test Coverage Includes:**
    * `test_raft_node.py`: Asserts single-node instant election, and validates `LEADER` vs `FOLLOWER` log rejection patterns.
    * `test_simulator.py`: Asserts UE mobility boundaries, strict distance-to-CQI signal constraints, and floating-point accuracy of TDD packet byte drains.
+
+---
+
+## Viewing The Dashboard 
+
+The Web App acts as the Visual Command Center. To start the Vite developer server:
+
+```bash
+cd frontend/
+npm install
+npm run dev
+```
+
+Open your browser to `http://localhost:5173`. You will see the animated 6G Network Topology map, the DDPG Agent monitor, and live Raft logging components.
