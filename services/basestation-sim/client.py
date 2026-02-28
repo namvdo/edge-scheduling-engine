@@ -1,69 +1,191 @@
-import random
+import os
+import sys
 import time
+import math
+import random
+import threading
 import grpc
 
-import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "gen"))
 
 import scheduler_pb2
 import scheduler_pb2_grpc
 import telemetry_pb2
 
-def telemetry_stream(cell_id="cell-1", total_prbs=50, ue_count=8, epochs=50):
-    """
-    Generates simulated telemetry every 100ms.
-    """
-    avg_tp = {f"ue-{i+1}": 100 for i in range(ue_count)}  # simple moving throughput
-    for epoch in range(epochs):
-        ues = []
-        for i in range(ue_count):
-            ue_id = f"ue-{i+1}"
-            slice_id = random.choice(["eMBB", "URLLC", "mMTC"])
-            cqi = random.randint(1, 15)
-            sinr = random.uniform(-5.0, 25.0)
 
-            # Simulated buffers (bytes)
-            dl_buf = random.randint(0, 50000)
-            ul_buf = random.randint(0, 30000)
+class StatefulUE:
+    """Represents a single User Equipment (UE) with physical traits and moving buffers."""
+    def __init__(self, ue_id: str):
+        self.ue_id = ue_id
+        self.slice_id = random.choice(["eMBB", "URLLC", "mMTC"])
+        # Position in a 500x500 meter grid around base station (0,0)
+        self.x = random.uniform(-250, 250)
+        self.y = random.uniform(-250, 250)
+        
+        # Buffers
+        self.dl_buffer_bytes = random.randint(0, 100000)
+        self.ul_buffer_bytes = random.randint(0, 50000)
+        
+        self.avg_throughput_kbps = 100
 
-            ues.append(
-                telemetry_pb2.UeReport(
-                    ue_id=ue_id,
-                    slice_id=slice_id,
-                    cqi=cqi,
-                    sinr_db=sinr,
-                    dl_buffer_bytes=dl_buf,
-                    ul_buffer_bytes=ul_buf,
-                    avg_throughput_kbps=avg_tp[ue_id],
+    def move(self):
+        """Random walk mobility model."""
+        self.x += random.uniform(-5, 5) # Moves max 5 meters per epoch
+        self.y += random.uniform(-5, 5)
+
+        # Restrict to cell boundaries
+        self.x = max(-250, min(250, self.x))
+        self.y = max(-250, min(250, self.y))
+
+    def get_cqi_and_sinr(self) -> tuple[int, float]:
+        """Convert physical distance to path loss, SINR, and CQI index."""
+        distance = math.sqrt(self.x**2 + self.y**2)
+        # Simplified Path Loss (Free Space variation)
+        # Assume max distance 350m -> worst SINR -5dB, best distance 10m -> best SINR >= 25dB
+        base_sinr = 30.0 - (10.0 * math.log10(max(distance, 1.0)))
+        
+        # Add slight shadow fading variance
+        sinr = base_sinr + random.uniform(-2.0, 2.0)
+        sinr = max(-5.0, min(25.0, sinr))
+        
+        # Map SINR [-5, 25] to CQI [1, 15]
+        # Very rough 3GPP-like mapping
+        cqi = int(max(1, min(15, (sinr + 5) / 2)))
+        return cqi, round(sinr, 2)
+
+    def generate_traffic(self):
+        """Poisson traffic arrival."""
+        if self.slice_id == "eMBB":
+            self.dl_buffer_bytes += int(random.expovariate(1/50000.0))
+            self.ul_buffer_bytes += int(random.expovariate(1/10000.0))
+        elif self.slice_id == "URLLC":
+            self.dl_buffer_bytes += random.randint(0, 5000)
+            self.ul_buffer_bytes += random.randint(0, 5000)
+        else: # mMTC
+            if random.random() < 0.2: # Bursty uplink
+                self.ul_buffer_bytes += random.randint(500, 2000)
+
+    def drain_buffers(self, allocated_prbs: int, cqi: int, tdd_dl_pct: float):
+        """
+        Drain buffers based on the granted PRBs, TDD split, and spectral efficiency (CQI).
+        CQI roughly translates to bits/symbol. We simplify by mapping CQI to bytes/PRB.
+        """
+        tdd_ul_pct = 1.0 - tdd_dl_pct
+        
+        # Example mapping: CQI 15 = ~100 bytes/PRB, CQI 1 = ~10 bytes/PRB
+        bytes_per_prb = max(10, cqi * 7)
+        
+        # Total bytes this UE could transmit this epoch
+        total_capacity_bytes = allocated_prbs * bytes_per_prb
+        
+        dl_capacity = int(total_capacity_bytes * tdd_dl_pct)
+        ul_capacity = int(total_capacity_bytes * tdd_ul_pct)
+
+        # Drain and record throughput
+        actual_dl_tx = min(self.dl_buffer_bytes, dl_capacity)
+        actual_ul_tx = min(self.ul_buffer_bytes, ul_capacity)
+        
+        self.dl_buffer_bytes -= actual_dl_tx
+        self.ul_buffer_bytes -= actual_ul_tx
+        
+        # Update running average throughput (kbps)
+        tx_bits = (actual_dl_tx + actual_ul_tx) * 8
+        throughput_kbps = tx_bits / 1000.0 / 0.1 # 100ms epoch
+        self.avg_throughput_kbps = int(0.9 * self.avg_throughput_kbps + 0.1 * throughput_kbps)
+
+
+class StatefulSimulator:
+    def __init__(self, target="localhost:50051", cell_id="cell-1", total_prbs=100, ue_count=20):
+        self.target = target
+        self.cell_id = cell_id
+        self.total_prbs = total_prbs
+        self.ues = {f"ue-{i+1}": StatefulUE(f"ue-{i+1}") for i in range(ue_count)}
+        self.epoch = 0
+        self.lock = threading.Lock()
+        
+        # Initial TDD assumption until scheduler dictates
+        self.last_tdd_dl_pct = 0.5 
+        self.last_allocations = {}
+
+    def _generate_telemetry(self):
+        with self.lock:
+            reports = []
+            for ue in self.ues.values():
+                cqi, sinr = ue.get_cqi_and_sinr()
+                reports.append(
+                    telemetry_pb2.UeReport(
+                        ue_id=ue.ue_id,
+                        slice_id=ue.slice_id,
+                        cqi=cqi,
+                        sinr_db=sinr,
+                        dl_buffer_bytes=ue.dl_buffer_bytes,
+                        ul_buffer_bytes=ue.ul_buffer_bytes,
+                        avg_throughput_kbps=ue.avg_throughput_kbps,
+                    )
                 )
+
+            msg = telemetry_pb2.CellTelemetry(
+                cell_id=self.cell_id,
+                epoch=self.epoch,
+                timestamp_ms=int(time.time() * 1000),
+                total_prbs=self.total_prbs,
+                prb_utilization=0.0,
+                ues=reports,
             )
+            self.epoch += 1
+            return msg
 
-        msg = telemetry_pb2.CellTelemetry(
-            cell_id=cell_id,
-            epoch=epoch,
-            timestamp_ms=int(time.time() * 1000),
-            total_prbs=total_prbs,
-            prb_utilization=0.0,
-            ues=ues,
-        )
+    def _apply_decision(self, decision: scheduler_pb2.ScheduleDecision):
+        with self.lock:
+            self.last_tdd_dl_pct = decision.tdd.dl_percent / 100.0
+            
+            for alloc in decision.allocations:
+                if alloc.ue_id in self.ues:
+                    ue = self.ues[alloc.ue_id]
+                    cqi, _ = ue.get_cqi_and_sinr()
+                    ue.drain_buffers(alloc.prbs, cqi, self.last_tdd_dl_pct)
 
-        yield msg
-        time.sleep(0.1)  # 100ms epoch
+            # Move and generate new traffic for the next epoch
+            for ue in self.ues.values():
+                ue.move()
+                ue.generate_traffic()
 
+    def telemetry_iterator(self):
+        """Generator that continuously yields telemetry at exactly 10Hz (100ms epochs)"""
+        while True:
+            yield self._generate_telemetry()
+            time.sleep(0.1)
 
-def run(target="localhost:50051", cell_id="cell-1"):
-    with grpc.insecure_channel(target) as channel:
-        stub = scheduler_pb2_grpc.SchedulerServiceStub(channel)
+    def run(self):
+        print(f"Connecting to scheduler at {self.target}...")
+        with grpc.insecure_channel(self.target) as channel:
+            stub = scheduler_pb2_grpc.SchedulerServiceStub(channel)
 
-        decisions = stub.Schedule(telemetry_stream(cell_id=cell_id))
-        for d in decisions:
-            top3 = sorted(d.allocations, key=lambda x: x.prbs, reverse=True)[:3]
-            top3_str = ", ".join([f"{a.ue_id}:{a.prbs}" for a in top3])
-            print(
-                f"[BS] cell={d.cell_id} epoch={d.epoch} ver={d.decision_version} "
-                f"TDD DL/UL={d.tdd.dl_percent}/{d.tdd.ul_percent} top={top3_str}"
-            )
-
+            # Bidirectional stream
+            decisions = stub.Schedule(self.telemetry_iterator())
+            
+            try:
+                for d in decisions:
+                    self._apply_decision(d)
+                    
+                    top3 = sorted(d.allocations, key=lambda x: x.prbs, reverse=True)[:3]
+                    top3_str = ", ".join([f"{a.ue_id}:{a.prbs}" for a in top3])
+                    
+                    if self.epoch % 10 == 0:
+                        total_dl = sum(ue.dl_buffer_bytes for ue in self.ues.values()) / 1024.0 / 1024.0
+                        total_ul = sum(ue.ul_buffer_bytes for ue in self.ues.values()) / 1024.0 / 1024.0
+                        
+                        print(
+                            f"[BS] epoch={d.epoch:<4} ver={d.decision_version:<3} "
+                            f"TDD={d.tdd.dl_percent}/{d.tdd.ul_percent} | "
+                            f"System Buffers: DL={total_dl:.2f}MB, UL={total_ul:.2f}MB | "
+                            f"Top Alloc={top3_str}"
+                        )
+            except grpc.RpcError as e:
+                print(f"Connection lost: {e}")
 
 if __name__ == "__main__":
-    run()
+    import os
+    scheduler_url = os.getenv("SCHEDULER_URL", "localhost:50051")
+    sim = StatefulSimulator(target=scheduler_url, ue_count=20)
+    sim.run()

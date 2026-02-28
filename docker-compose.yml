@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  scheduler-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    environment:
+      - NODE_ID=scheduler-1
+      - CONSENSUS_ENABLED=true
+      - RAFT_PEERS=scheduler-1:50061,scheduler-2:50062,scheduler-3:50063
+      - RAFT_PORT=50061
+      - RAFT_ADDRESS=scheduler-1:50061
+      - SCHEDULER_PORT=50051
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./data/logs:/app/data/logs
+      - ./models:/app/models
+    networks:
+      - edge-net
+
+  scheduler-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    environment:
+      - NODE_ID=scheduler-2
+      - CONSENSUS_ENABLED=true
+      - RAFT_PEERS=scheduler-1:50061,scheduler-2:50062,scheduler-3:50063
+      - RAFT_PORT=50062
+      - RAFT_ADDRESS=scheduler-2:50062
+      - SCHEDULER_PORT=50052
+    ports:
+      - "50052:50052"
+    volumes:
+      - ./data/logs:/app/data/logs
+      - ./models:/app/models
+    networks:
+      - edge-net
+
+  scheduler-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    environment:
+      - NODE_ID=scheduler-3
+      - CONSENSUS_ENABLED=true
+      - RAFT_PEERS=scheduler-1:50061,scheduler-2:50062,scheduler-3:50063
+      - RAFT_PORT=50063
+      - RAFT_ADDRESS=scheduler-3:50063
+      - SCHEDULER_PORT=50053
+    ports:
+      - "50053:50053"
+    volumes:
+      - ./data/logs:/app/data/logs
+      - ./models:/app/models
+    networks:
+      - edge-net
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.simulator
+    environment:
+      - SCHEDULER_URL=scheduler-1:50051 # Point at the first node
+    depends_on:
+      - scheduler-1
+      - scheduler-2
+      - scheduler-3
+    networks:
+      - edge-net
+
+networks:
+  edge-net:
+    driver: bridge
