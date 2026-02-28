@@ -1,5 +1,7 @@
 # Edge Scheduling Engine - 5G/6G Distributed Systems Final Project
 
+![5G Edge Scheduling Engine Demo](./5g_network_edge_scheduling_engine_demo.png)
+
 This project implements core distributed systems concepts including consensus algorithms, deep reinforcement learning, big data analytics, and microservice architectures. 
 
 ## Major Components
@@ -15,7 +17,14 @@ This project implements core distributed systems concepts including consensus al
 5. **Global Cloud Orchestrator (`services/cloud-orchestrator`)**
    A slow-loop orchestrator that reads historical PySpark analytics to detect slice starvation. It deploys new Quality of Service weights downward to the fast-loop Edge Schedulers via gRPC `UpdateSlicePolicy` hooks.
 6. **React Dashboard Interface (`frontend`)**
-   Features a live animated SVG Network Topology map, real-time DDPG training monitors, scrolling RAFT consensus logs, and responsive Recharts for bandwidth capabilities.
+   Features a live animated SVG Network Topology map, real-time DDPG training monitors, scrolling RAFT consensus logs, and responsive Recharts for bandwidth capabilities. It includes a dynamic configuration panel allowing users to independently scale the simulated Radio Access Network, supporting live topology shifts between 3 to 12 active Radio Units (RUs) and 3 to 9 active Distributed Units (DUs).
+
+## O-RAN Architecture Overview
+
+This simulator accurately models the decomposed 5G/6G Open Radio Access Network (O-RAN) architecture across three distributed tiers:
+* **RU (Radio Unit):** Represent the physical antennas handling raw radio frequency (RF) signals and edge device connectivity.
+* **DU (Distributed Unit):** Edge compute nodes placed near the RU that execute the real-time DDPG scheduling inferences (assigning spectrum blocks millisecond-by-millisecond).
+* **CU (Centralized Unit):** Regional cloud nodes that manage slow-loop tasks, global quality-of-service policies, and broader network orchestration.
 
 ---
 
