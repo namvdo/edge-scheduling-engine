@@ -45,6 +45,13 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Global state to track forced spikes from UI
+spike_state = {
+    "active": False,
+    "node": None,
+    "end_time": 0
+}
+
 # Currently, we simulate reading from the Raft/DDPG log. 
 # In a full integration, this would tail `node1.log` or connect via ZMQ/gRPC.
 async def log_generator():
@@ -80,18 +87,25 @@ async def log_generator():
         nodes = ["RU-1", "RU-2", "RU-3", "RU-4", "DU-1", "DU-Core", "CU-East", "CU-West"]
         node_metrics = []
         for n in nodes:
-            # Simulate occasional load spikes for certain nodes to show dynamic balancing
-            is_congested = random.random() > 0.85
-            base_compute = int(random.uniform(75, 99)) if is_congested else int(random.uniform(20, 65))
+            # Check if there is a manual UI spike commanded
+            is_manual_spike = spike_state["active"] and time.time() < spike_state["end_time"] and spike_state["node"] == n
+            if is_manual_spike:
+                base_compute = 99
+                storage = int(random.uniform(90, 100)) # buffer floods
+            else:
+                # Normal operations
+                is_congested = random.random() > 0.85
+                base_compute = int(random.uniform(75, 99)) if is_congested else int(random.uniform(20, 65))
+                storage = int(random.uniform(10, 80))
             
             # CU-East is typically higher load in the demo
-            if n == "CU-East":
+            if n == "CU-East" and not is_manual_spike:
                 base_compute = max(60, base_compute + int(random.uniform(10, 30)))
                 
             node_metrics.append({
                 "name": n,
                 "compute": min(99, base_compute),
-                "storage": int(random.uniform(10, 80)),      # representation of buffer fill
+                "storage": storage,      # representation of buffer fill
                 "spectrum": int(random.uniform(50, 400))     # allocated PRBs / bandwidth
             })
             
@@ -133,6 +147,23 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            # Handle incoming commands if needed
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "INJECT_SPIKE":
+                    spike_state["active"] = True
+                    spike_state["node"] = msg.get("node", "RU-1")
+                    spike_state["end_time"] = time.time() + 15  # Spike lasts 15 seconds
+                    print(f"Server received SPIKE command for {spike_state['node']}")
+                    
+                    # Log the injection
+                    await manager.broadcast(json.dumps({
+                        "type": "SCHED",
+                        "level": "CRIT",
+                        "msg": f"USER OVERRIDE: 500% WORKLOAD SPIKE INJECTED AT {spike_state['node']}!",
+                        "node": spike_state['node'],
+                        "ts": time.strftime('%H:%M:%S')
+                    }))
+            except Exception as e:
+                print("Error parsing websocket message:", e)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
