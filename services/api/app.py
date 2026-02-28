@@ -1,6 +1,7 @@
 import json
 import logging
 import asyncio
+import math
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import time
@@ -70,13 +71,40 @@ async def log_generator():
         lat = max(2.0, lat + random.uniform(-2, 2.5))
         util = max(10.0, min(99.0, util + random.uniform(-5, 5)))
         
+        # Dynamic TDD (e.g., DDPG agent output changing over time)
+        dl_percent = 50 + int(math.sin(time.time() / 10) * 30 + random.uniform(-5, 5))
+        dl_percent = max(10, min(90, dl_percent))
+        ul_percent = 100 - dl_percent
+
+        # Node-specific resource allocation (Compute, Storage Buffer, Spectrum)
+        nodes = ["RU-1", "RU-2", "DU-Core"]
+        node_metrics = []
+        for n in nodes:
+            node_metrics.append({
+                "name": n,
+                "compute": int(random.uniform(20, 95)),
+                "storage": int(random.uniform(10, 80)),      # representation of buffer fill
+                "spectrum": int(random.uniform(50, 400))     # allocated PRBs / bandwidth
+            })
+            
+        # Network Slicing (Bandwidth partitioning)
+        slices = [
+            {"name": "eMBB", "value": int(random.uniform(40, 60))},
+            {"name": "URLLC", "value": int(random.uniform(20, 35))},
+            {"name": "mMTC", "value": int(random.uniform(5, 15))}
+        ]
+
         metrics = {
             "type": "METRICS",
             "time": int(time.time() % 100),
             "throughput": tp,
             "latency": lat,
             "utilization": util,
-            "users": int(300 + random.uniform(-10, 20))
+            "users": int(300 + random.uniform(-10, 20)),
+            "tdd_dl": dl_percent,
+            "tdd_ul": ul_percent,
+            "node_allocations": node_metrics,
+            "slice_allocation": slices
         }
         await manager.broadcast(json.dumps(metrics))
 

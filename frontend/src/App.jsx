@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useWebSocket from 'react-use-websocket';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
 import { Activity, Server, Cpu, Network, Wifi, AlertTriangle, CheckCircle2, Settings, History, Info } from 'lucide-react';
 
 const generateDDPGData = (mode) => {
@@ -442,14 +442,59 @@ const App = () => {
 
               <div className="grid grid-cols-2 gap-4 pt-2">
                 {/* Metric: Users */}
-                <div className="bg-slate-950/50 border border-slate-800/50 p-3 rounded-lg flex flex-col items-center justify-center">
+                <div className="bg-slate-950/50 border border-slate-800/50 p-2 rounded-lg flex flex-col items-center justify-center">
                   <div className="text-[10px] text-slate-400 mb-1">Active UEs</div>
-                  <div className="text-2xl font-bold text-cyan-400 font-mono tracking-tighter">{metrics[metrics.length - 1]?.users || 0}</div>
+                  <div className="text-xl font-bold text-cyan-400 font-mono tracking-tighter">{metrics[metrics.length - 1]?.users || 0}</div>
                 </div>
                 {/* Metric: Util */}
-                <div className="bg-slate-950/50 border border-slate-800/50 p-3 rounded-lg flex flex-col items-center justify-center">
+                <div className="bg-slate-950/50 border border-slate-800/50 p-2 rounded-lg flex flex-col items-center justify-center">
                   <div className="text-[10px] text-slate-400 mb-1">Compute Util</div>
-                  <div className="text-2xl font-bold text-emerald-400 font-mono tracking-tighter">{metrics[metrics.length - 1]?.utilization?.toFixed(0) || 0}%</div>
+                  <div className="text-xl font-bold text-emerald-400 font-mono tracking-tighter">{metrics[metrics.length - 1]?.utilization?.toFixed(0) || 0}%</div>
+                </div>
+              </div>
+
+              {/* TDD Split & Network Slicing */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800/60 mt-2">
+                <div className="bg-slate-950/50 border border-slate-800/50 p-3 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="text-[10px] text-slate-400 mb-2 w-full text-left uppercase tracking-wider font-semibold">Dynamic TDD Split</div>
+                  <div className="flex w-full h-3 rounded-full overflow-hidden bg-slate-800 mb-2">
+                    <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${metrics[metrics.length - 1]?.tdd_dl || 50}%` }}></div>
+                    <div className="bg-purple-500 h-full transition-all duration-500" style={{ width: `${metrics[metrics.length - 1]?.tdd_ul || 50}%` }}></div>
+                  </div>
+                  <div className="flex justify-between w-full text-[9px] font-mono font-bold">
+                    <span className="text-cyan-400">DL: {metrics[metrics.length - 1]?.tdd_dl || 50}%</span>
+                    <span className="text-purple-400">UL: {metrics[metrics.length - 1]?.tdd_ul || 50}%</span>
+                  </div>
+                </div>
+
+                <div className="bg-slate-950/50 border border-slate-800/50 p-2 rounded-lg flex flex-col items-center justify-center">
+                  <div className="text-[10px] text-slate-400 mb-2 w-full text-left uppercase tracking-wider font-semibold">Slice Allocation</div>
+                  <div className="w-full flex-1 flex items-end justify-between gap-1 h-6">
+                    {(metrics[metrics.length - 1]?.slice_allocation || []).map((slice, i) => (
+                      <div key={i} className="flex flex-col items-center justify-end w-1/3 h-full group relative">
+                        <div className={`w-full rounded-t-sm transition-all duration-500 ${i === 0 ? 'bg-blue-500/80' : i === 1 ? 'bg-rose-500/80' : 'bg-emerald-500/80'}`} style={{ height: `${slice.value}%`, minHeight: '4px' }}></div>
+                        <div className="text-[8px] text-slate-500 mt-1 uppercase font-semibold">{slice.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Node-specific Resource Allocation */}
+              <div className="pt-4 border-t border-slate-800/60 mt-2">
+                <div className="text-xs text-slate-400 font-medium mb-3">Resource Allocation by Node</div>
+                <div className="h-36 w-full bg-slate-950/50 rounded-lg p-2 border border-slate-800/50">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={metrics[metrics.length - 1]?.node_allocations || []} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: '#0f172a' }} contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.9)', borderColor: '#1e293b', borderRadius: '8px', fontSize: '10px' }} />
+                      <Bar dataKey="spectrum" name="Spectrum (PRBs)" fill="#0ea5e9" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="compute" name="Compute (%)" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="storage" name="Storage (Buffer MB)" fill="#f43f5e" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
