@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 import telemetry_pb2 as telemetry__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fscheduler.proto\x12\x12\x65\x64ge.scheduling.v1\x1a\x0ftelemetry.proto\"3\n\tTddConfig\x12\x12\n\ndl_percent\x18\x01 \x01(\r\x12\x12\n\nul_percent\x18\x02 \x01(\r\";\n\x0cUeAllocation\x12\r\n\x05ue_id\x18\x01 \x01(\t\x12\x0c\n\x04prbs\x18\x02 \x01(\r\x12\x0e\n\x06weight\x18\x03 \x01(\x02\"\xaf\x01\n\x10ScheduleDecision\x12\x0f\n\x07\x63\x65ll_id\x18\x01 \x01(\t\x12\r\n\x05\x65poch\x18\x02 \x01(\x04\x12\x18\n\x10\x64\x65\x63ision_version\x18\x03 \x01(\x04\x12*\n\x03tdd\x18\x04 \x01(\x0b\x32\x1d.edge.scheduling.v1.TddConfig\x12\x35\n\x0b\x61llocations\x18\x05 \x03(\x0b\x32 .edge.scheduling.v1.UeAllocation\"\"\n\x03\x41\x63k\x12\n\n\x02ok\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\xa5\x01\n\x10SchedulerService\x12W\n\x08Schedule\x12!.edge.scheduling.v1.CellTelemetry\x1a$.edge.scheduling.v1.ScheduleDecision(\x01\x30\x01\x12\x38\n\x04Ping\x12\x17.edge.scheduling.v1.Ack\x1a\x17.edge.scheduling.v1.AckB?Z=edge-scheduling-engine/gen/go/edge/scheduling/v1;schedulingv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0fscheduler.proto\x12\x12\x65\x64ge.scheduling.v1\x1a\x0ftelemetry.proto\"3\n\tTddConfig\x12\x12\n\ndl_percent\x18\x01 \x01(\r\x12\x12\n\nul_percent\x18\x02 \x01(\r\";\n\x0cUeAllocation\x12\r\n\x05ue_id\x18\x01 \x01(\t\x12\x0c\n\x04prbs\x18\x02 \x01(\r\x12\x0e\n\x06weight\x18\x03 \x01(\x02\"\xaf\x01\n\x10ScheduleDecision\x12\x0f\n\x07\x63\x65ll_id\x18\x01 \x01(\t\x12\r\n\x05\x65poch\x18\x02 \x01(\x04\x12\x18\n\x10\x64\x65\x63ision_version\x18\x03 \x01(\x04\x12*\n\x03tdd\x18\x04 \x01(\x0b\x32\x1d.edge.scheduling.v1.TddConfig\x12\x35\n\x0b\x61llocations\x18\x05 \x03(\x0b\x32 .edge.scheduling.v1.UeAllocation\"\"\n\x03\x41\x63k\x12\n\n\x02ok\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x9a\x01\n\x12SlicePolicyRequest\x12O\n\rslice_weights\x18\x01 \x03(\x0b\x32\x38.edge.scheduling.v1.SlicePolicyRequest.SliceWeightsEntry\x1a\x33\n\x11SliceWeightsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02:\x02\x38\x01\"7\n\x13SlicePolicyResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\xd1\x01\n\x10SchedulerService\x12W\n\x08Schedule\x12!.edge.scheduling.v1.CellTelemetry\x1a$.edge.scheduling.v1.ScheduleDecision(\x01\x30\x01\x12\x64\n\x11UpdateSlicePolicy\x12&.edge.scheduling.v1.SlicePolicyRequest\x1a\'.edge.scheduling.v1.SlicePolicyResponseB?Z=edge-scheduling-engine/gen/go/edge/scheduling/v1;schedulingv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,6 +33,8 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'scheduler_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z=edge-scheduling-engine/gen/go/edge/scheduling/v1;schedulingv1'
+  _globals['_SLICEPOLICYREQUEST_SLICEWEIGHTSENTRY']._loaded_options = None
+  _globals['_SLICEPOLICYREQUEST_SLICEWEIGHTSENTRY']._serialized_options = b'8\001'
   _globals['_TDDCONFIG']._serialized_start=56
   _globals['_TDDCONFIG']._serialized_end=107
   _globals['_UEALLOCATION']._serialized_start=109
@@ -41,6 +43,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SCHEDULEDECISION']._serialized_end=346
   _globals['_ACK']._serialized_start=348
   _globals['_ACK']._serialized_end=382
-  _globals['_SCHEDULERSERVICE']._serialized_start=385
-  _globals['_SCHEDULERSERVICE']._serialized_end=550
+  _globals['_SLICEPOLICYREQUEST']._serialized_start=385
+  _globals['_SLICEPOLICYREQUEST']._serialized_end=539
+  _globals['_SLICEPOLICYREQUEST_SLICEWEIGHTSENTRY']._serialized_start=488
+  _globals['_SLICEPOLICYREQUEST_SLICEWEIGHTSENTRY']._serialized_end=539
+  _globals['_SLICEPOLICYRESPONSE']._serialized_start=541
+  _globals['_SLICEPOLICYRESPONSE']._serialized_end=596
+  _globals['_SCHEDULERSERVICE']._serialized_start=599
+  _globals['_SCHEDULERSERVICE']._serialized_end=808
 # @@protoc_insertion_point(module_scope)

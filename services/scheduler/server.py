@@ -41,14 +41,21 @@ from services.scheduler.cluster import (
 from services.scheduler.middleware.logger import TelemetryLogger
 
 
-def simple_pf_allocate(cell: telemetry_pb2.CellTelemetry):
-    """Simple PF-style allocator for demo traffic."""
+def simple_pf_allocate(cell: telemetry_pb2.CellTelemetry, slice_weights: dict = None):
+    """Simple PF-style allocator for demo traffic with optional slice weighting."""
+    if slice_weights is None:
+        slice_weights = {"eMBB": 1.0, "URLLC": 1.0, "mMTC": 1.0}
+
     total_prbs = max(1, int(cell.total_prbs))
     scores = []
     for ue in cell.ues:
         demand = float(ue.dl_buffer_bytes + ue.ul_buffer_bytes)
         avg_tp = float(ue.avg_throughput_kbps)
-        score = demand / (avg_tp + 1.0)
+        
+        # Apply cloud-dictated slice policy weight
+        weight = slice_weights.get(ue.slice_id, 1.0)
+        
+        score = (demand / (avg_tp + 1.0)) * weight
         scores.append((ue.ue_id, score))
 
     score_sum = sum(s for _, s in scores) or 1.0
@@ -100,6 +107,7 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
             print("[ML] No trained DDPG model found, using random weights")
 
         self.telemetry_logger = TelemetryLogger()
+        self.global_slice_weights = {"eMBB": 1.0, "URLLC": 1.0, "mMTC": 1.0}
 
         if self.cluster_cfg.consensus_enabled:
             try:
@@ -152,6 +160,16 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
     def Ping(self, request, context):
         return scheduler_pb2.Ack(ok=True, message="pong")
 
+    def UpdateSlicePolicy(self, request, context):
+        print(f"[POLICY UPDATE] Received new slice weights from Cloud: {request.slice_weights}")
+        for k, v in request.slice_weights.items():
+            self.global_slice_weights[k] = v
+        
+        return scheduler_pb2.SlicePolicyResponse(
+            success=True, 
+            message="Edge Scheduler updated slice policy"
+        )
+
     def Schedule(self, request_iterator, context):
         """Bidirectional stream with optional consensus guardrails."""
         for cell in request_iterator:
@@ -197,7 +215,7 @@ class SchedulerService(scheduler_pb2_grpc.SchedulerServiceServicer):
             else:
                 dl_pct, ul_pct = 50, 50
 
-            allocs = simple_pf_allocate(cell)
+            allocs = simple_pf_allocate(cell, self.global_slice_weights)
 
             decision = scheduler_pb2.ScheduleDecision(
                 cell_id=cell.cell_id,

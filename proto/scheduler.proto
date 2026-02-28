@@ -36,10 +36,18 @@ message Ack {
 // Scheduler service API
 service SchedulerService {
   // Base station opens one stream per cell:
-  //  - sends CellTelemetry
-  //  - receives ScheduleDecision for each epoch
+  //    // Stream telemetry from base station and receive scheduling decisions
   rpc Schedule(stream CellTelemetry) returns (stream ScheduleDecision);
 
-  // Optional: quick liveness ping
-  rpc Ping(Ack) returns (Ack);
+  // Cloud Orchestrator slowly updates global slice policies
+  rpc UpdateSlicePolicy(SlicePolicyRequest) returns (SlicePolicyResponse);
+}
+
+message SlicePolicyRequest {
+    map<string, float> slice_weights = 1; // e.g., {"eMBB": 1.0, "URLLC": 5.0, "mMTC": 0.5}
+}
+
+message SlicePolicyResponse {
+    bool success = 1;
+    string message = 2;
 }

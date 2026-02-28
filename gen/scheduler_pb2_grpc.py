@@ -41,10 +41,10 @@ class SchedulerServiceStub(object):
                 request_serializer=telemetry__pb2.CellTelemetry.SerializeToString,
                 response_deserializer=scheduler__pb2.ScheduleDecision.FromString,
                 _registered_method=True)
-        self.Ping = channel.unary_unary(
-                '/edge.scheduling.v1.SchedulerService/Ping',
-                request_serializer=scheduler__pb2.Ack.SerializeToString,
-                response_deserializer=scheduler__pb2.Ack.FromString,
+        self.UpdateSlicePolicy = channel.unary_unary(
+                '/edge.scheduling.v1.SchedulerService/UpdateSlicePolicy',
+                request_serializer=scheduler__pb2.SlicePolicyRequest.SerializeToString,
+                response_deserializer=scheduler__pb2.SlicePolicyResponse.FromString,
                 _registered_method=True)
 
 
@@ -54,15 +54,14 @@ class SchedulerServiceServicer(object):
 
     def Schedule(self, request_iterator, context):
         """Base station opens one stream per cell:
-        - sends CellTelemetry
-        - receives ScheduleDecision for each epoch
+        // Stream telemetry from base station and receive scheduling decisions
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Ping(self, request, context):
-        """Optional: quick liveness ping
+    def UpdateSlicePolicy(self, request, context):
+        """Cloud Orchestrator slowly updates global slice policies
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -76,10 +75,10 @@ def add_SchedulerServiceServicer_to_server(servicer, server):
                     request_deserializer=telemetry__pb2.CellTelemetry.FromString,
                     response_serializer=scheduler__pb2.ScheduleDecision.SerializeToString,
             ),
-            'Ping': grpc.unary_unary_rpc_method_handler(
-                    servicer.Ping,
-                    request_deserializer=scheduler__pb2.Ack.FromString,
-                    response_serializer=scheduler__pb2.Ack.SerializeToString,
+            'UpdateSlicePolicy': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateSlicePolicy,
+                    request_deserializer=scheduler__pb2.SlicePolicyRequest.FromString,
+                    response_serializer=scheduler__pb2.SlicePolicyResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -121,7 +120,7 @@ class SchedulerService(object):
             _registered_method=True)
 
     @staticmethod
-    def Ping(request,
+    def UpdateSlicePolicy(request,
             target,
             options=(),
             channel_credentials=None,
@@ -134,9 +133,9 @@ class SchedulerService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/edge.scheduling.v1.SchedulerService/Ping',
-            scheduler__pb2.Ack.SerializeToString,
-            scheduler__pb2.Ack.FromString,
+            '/edge.scheduling.v1.SchedulerService/UpdateSlicePolicy',
+            scheduler__pb2.SlicePolicyRequest.SerializeToString,
+            scheduler__pb2.SlicePolicyResponse.FromString,
             options,
             channel_credentials,
             insecure,
