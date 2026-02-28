@@ -1,39 +1,43 @@
 #!/bin/bash
 export CONSENSUS_ENABLED=true
-export RAFT_PEERS="localhost:50061,localhost:50062,localhost:50063"
 
-# Node 1
-export NODE_ID=scheduler-1
-export SCHEDULER_PORT=50051
-export RAFT_PORT=50061
-export RAFT_ADDRESS=localhost:50061
-PYTHONUNBUFFERED=1 .venv/bin/python services/scheduler/server.py > node1.log 2>&1 &
-PID1=$!
+NUM_NODES=${1:-5}
 
-# Node 2
-export NODE_ID=scheduler-2
-export SCHEDULER_PORT=50052
-export RAFT_PORT=50062
-export RAFT_ADDRESS=localhost:50062
-PYTHONUNBUFFERED=1 .venv/bin/python services/scheduler/server.py > node2.log 2>&1 &
-PID2=$!
+if [ "$NUM_NODES" -ne 3 ] && [ "$NUM_NODES" -ne 5 ] && [ "$NUM_NODES" -ne 9 ]; then
+    echo "Error: Number of nodes must be 3, 5, or 9."
+    exit 1
+fi
 
-# Node 3
-export NODE_ID=scheduler-3
-export SCHEDULER_PORT=50053
-export RAFT_PORT=50063
-export RAFT_ADDRESS=localhost:50063
-PYTHONUNBUFFERED=1 .venv/bin/python services/scheduler/server.py > node3.log 2>&1 &
-PID3=$!
+RAFT_PEERS=""
+for i in $(seq 1 $NUM_NODES); do
+    if [ -z "$RAFT_PEERS" ]; then
+        RAFT_PEERS="localhost:5006$i"
+    else
+        RAFT_PEERS="$RAFT_PEERS,localhost:5006$i"
+    fi
+done
+export RAFT_PEERS
 
-echo "Started 3 nodes. PIDs: $PID1 $PID2 $PID3"
+PIDS=()
+for i in $(seq 1 $NUM_NODES); do
+    export NODE_ID=scheduler-$i
+    export SCHEDULER_PORT=$((50050 + i))
+    export RAFT_PORT=$((50060 + i))
+    export RAFT_ADDRESS=localhost:$RAFT_PORT
+    PYTHONUNBUFFERED=1 .venv/bin/python services/scheduler/server.py > node$i.log 2>&1 &
+    PIDS+=($!)
+done
+
+echo "Started $NUM_NODES nodes. PIDs: ${PIDS[*]}"
 sleep 5
 
-echo "Killing Node 1 ($PID1) to trigger re-election..."
-kill -9 $PID1
+echo "Killing Node 1 (${PIDS[0]}) to trigger re-election..."
+kill -9 ${PIDS[0]}
 
 sleep 5
 
 echo "Shutting down remaining nodes..."
-kill -9 $PID2 $PID3
+for i in $(seq 1 $((NUM_NODES-1))); do
+    kill -9 ${PIDS[$i]} 2>/dev/null
+done
 echo "Done"

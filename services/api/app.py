@@ -52,16 +52,21 @@ spike_state = {
     "end_time": 0
 }
 
+config_state = {
+    "ru": 5,
+    "du": 5,
+    "cu": 1
+}
+
 # Currently, we simulate reading from the Raft/DDPG log. 
 # In a full integration, this would tail `node1.log` or connect via ZMQ/gRPC.
 async def log_generator():
-    demo_logs = [
-        {"type": "RAFT", "level": "INFO", "msg": "[RU-1] Broadcast AppendEntries (Heartbeat)", "node": "RU-1", "ts": None},
-        {"type": "RAFT", "level": "INFO", "msg": "← RU-2: Ack Term 452 (2ms)", "node": "RU-2", "ts": None},
-        {"type": "RAFT", "level": "INFO", "msg": "← DU-Core: Ack Term 452 (4ms)", "node": "DU-Core", "ts": None},
-        {"type": "RAFT", "level": "WARN", "msg": "x CU-East: Timeout Error > 50ms", "node": "CU-East", "ts": None},
-        {"type": "SCHED", "level": "INFO", "msg": "Scheduler dynamically adjusted DL PRB allocation for DU-Core.", "node": "DU-Core", "ts": None},
-        {"type": "SCHED", "level": "CRIT", "msg": "RU-2 latency spiked > 50ms. DDPG penalizing state reward.", "node": "RU-2", "ts": None},
+    demo_logs_templates = [
+        {"type": "RAFT", "level": "INFO", "msg": "[{n1}] Broadcast AppendEntries (Heartbeat)", "node": "{n1}"},
+        {"type": "RAFT", "level": "INFO", "msg": "← {n2}: Ack Term 452 (2ms)", "node": "{n2}"},
+        {"type": "RAFT", "level": "WARN", "msg": "x {n3}: Timeout Error > 50ms", "node": "{n3}"},
+        {"type": "SCHED", "level": "INFO", "msg": "Scheduler dynamically adjusted DL PRB allocation for {n2}.", "node": "{n2}"},
+        {"type": "SCHED", "level": "CRIT", "msg": "{n_last} latency spiked > 50ms. DDPG penalizing state reward.", "node": "{n_last}"},
     ]
     
     tp = 400
@@ -84,9 +89,15 @@ async def log_generator():
         ul_percent = 100 - dl_percent
 
         # Node-specific resource allocation (Compute, Storage Buffer, Spectrum)
-        nodes = ["RU-1", "RU-2", "RU-3", "RU-4", "DU-1", "DU-Core", "CU-East", "CU-West"]
+        nodes = []
+        for i in range(config_state["ru"]):
+            nodes.append(f"RU-{i+1}")
+        for i in range(config_state["du"]):
+            nodes.append(f"DU-{i+1}")
+        nodes.append("CU-Core")
+            
         node_metrics = []
-        for n in nodes:
+        for i, n in enumerate(nodes):
             # Check if there is a manual UI spike commanded
             is_manual_spike = spike_state["active"] and time.time() < spike_state["end_time"] and spike_state["node"] == n
             if is_manual_spike:
@@ -98,8 +109,8 @@ async def log_generator():
                 base_compute = int(random.uniform(75, 99)) if is_congested else int(random.uniform(20, 65))
                 storage = int(random.uniform(10, 80))
             
-            # CU-East is typically higher load in the demo
-            if n == "CU-East" and not is_manual_spike:
+            # The last node is typically higher load in the demo
+            if i == len(nodes) - 1 and not is_manual_spike:
                 base_compute = max(60, base_compute + int(random.uniform(10, 30)))
                 
             node_metrics.append({
@@ -132,8 +143,18 @@ async def log_generator():
 
         # 2. Generate random log events
         if random.random() > 0.6:
-            log_event = random.choice(demo_logs).copy()
-            log_event["ts"] = ts
+            tmpl = random.choice(demo_logs_templates)
+            n1 = nodes[0]
+            n2 = nodes[min(1, len(nodes)-1)]
+            n3 = nodes[min(2, len(nodes)-1)]
+            n_l = nodes[-1]
+            log_event = {
+                "type": tmpl["type"],
+                "level": tmpl["level"],
+                "msg": tmpl["msg"].format(n1=n1, n2=n2, n3=n3, n_last=n_l),
+                "node": tmpl["node"].format(n1=n1, n2=n2, n3=n3, n_last=n_l),
+                "ts": ts
+            }
             await manager.broadcast(json.dumps(log_event))
 
 
@@ -161,6 +182,19 @@ async def websocket_endpoint(websocket: WebSocket):
                         "level": "CRIT",
                         "msg": f"USER OVERRIDE: 500% WORKLOAD SPIKE INJECTED AT {spike_state['node']}!",
                         "node": spike_state['node'],
+                        "ts": time.strftime('%H:%M:%S')
+                    }))
+                elif msg.get("type") == "UPDATE_CONFIG":
+                    config_state["ru"] = msg.get("ru", 5)
+                    config_state["du"] = msg.get("du", 5)
+                    print(f"Applied new global configuration: {config_state['ru']} RUs, {config_state['du']} DUs")
+                    
+                    # Log the config update
+                    await manager.broadcast(json.dumps({
+                        "type": "SYS",
+                        "level": "INFO",
+                        "msg": f"SYSTEM RECONFIG: Set cluster size to {config_state['ru']} RUs and {config_state['du']} DUs.",
+                        "node": "SYS",
                         "ts": time.strftime('%H:%M:%S')
                     }))
             except Exception as e:
