@@ -60,11 +60,17 @@ This simulator accurately models the decomposed 5G/6G Open Radio Access Network 
 To launch the entire 5G Edge Scheduling Engine stack (Raft Cluster, Simulator, Orchestrator, WebSocket Gateway, and React UI) simultaneously in the background:
 
 ```bash
-chmod +x start_system.sh
+chmod +x start_system.sh stop_system.sh
 ./start_system.sh
 ```
 
-Then open your browser to `http://localhost:5173`. When finished testing, press `Ctrl+C` in the terminal to gracefully terminate all microservices.
+Then open your browser to `http://localhost:5173`.
+
+**Stopping the System:**
+- Press `Ctrl+C` in the terminal to gracefully terminate all microservices, OR
+- Run `./stop_system.sh` from another terminal to stop all services
+
+**Note:** The startup script automatically cleans up any stale processes from previous runs (ports 8000 and 5173).
 
 ---
 
@@ -131,7 +137,7 @@ The project uses `pytest` to definitively validate the complex mathematical algo
 
 ---
 
-## Viewing The Dashboard 
+## Viewing The Dashboard
 
 The Web App acts as the Visual Command Center. To start the Vite developer server:
 
@@ -142,3 +148,19 @@ npm run dev
 ```
 
 Open your browser to `http://localhost:5173`. You will see the animated 6G Network Topology map, the DDPG Agent monitor, and live Raft logging components.
+
+### Dashboard Features
+
+**Configuration Panel:**
+- **RU/DU Selection:** Dynamically change the number of Radio Units (3-12) and Distributed Units (3, 5, 7, or 9). Click "Apply Configuration" to update the topology in real-time.
+- **Stress Testing:** Select any node from the dropdown and click "Inject Workload Spike" to simulate a 500% traffic spike for 15 seconds. Watch the node turn red and observe the scheduler's rebalancing response.
+
+**History Tab:**
+- Select any node to view its historical CPU, Memory, and Spectrum allocation over time.
+- The chart displays up to 60 seconds of history (1Hz sampling rate).
+- Export telemetry data to CSV for offline analysis.
+
+**Real-Time Metrics:**
+- Throughput, latency, and utilization update every second via WebSocket.
+- Dynamic TDD split shows the current downlink/uplink ratio determined by the DDPG agent.
+- Per-node resource allocation bar chart shows compute, spectrum, and buffer usage across all nodes.

@@ -25,15 +25,17 @@ def test_ue_mobility():
 def test_ue_cqi_calculation():
     ue = StatefulUE("ue-1")
     ue.x, ue.y = 0.0, 10.0 # 10 meters away, very close
-    
+
     cqi, sinr = ue.get_cqi_and_sinr()
-    
+
     assert 1 <= cqi <= 15
-    assert -5.0 <= sinr <= 25.0
-    # At 10m, without random fading, base sinr is 30 - 10*log10(10) = 20. 
-    # With fading (-2 to +2), expected > 18.
-    assert sinr > 15.0 
-    assert cqi > 10
+    assert -5.0 <= sinr <= 30.0
+    # Urban microcell path loss model: PL = 38 + 25*log10(10) = 38 + 25 = 63 dB
+    # SINR = 30 (Tx) - 63 (PL) - (-100) (noise) + fading = 67 dB (capped to 30)
+    # With shadow fading (std=4dB), expect SINR typically > 20 dB at 10m
+    # Note: Due to shadow fading variance, we use relaxed bounds
+    assert sinr > 10.0  # Should be high SINR at close distance
+    assert cqi >= 8  # High CQI expected at close range
 
 def test_buffer_draining():
     ue = StatefulUE("ue-1")

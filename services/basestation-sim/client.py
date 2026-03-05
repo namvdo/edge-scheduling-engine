@@ -38,19 +38,42 @@ class StatefulUE:
         self.y = max(-250, min(250, self.y))
 
     def get_cqi_and_sinr(self) -> tuple[int, float]:
-        """Convert physical distance to path loss, SINR, and CQI index."""
+        """
+        Convert physical distance to path loss, SINR, and CQI index.
+
+        Uses simplified 3GPP-like urban microcell path loss model:
+        - PL(d) = PL_0 + 10*n*log10(d/d_0), where n=2.5 (urban micro)
+        - PL_0 = 38 dB at d_0 = 1m reference distance
+        - Tx Power = 30 dBm, Noise Floor = -100 dBm
+        """
         distance = math.sqrt(self.x**2 + self.y**2)
-        # Simplified Path Loss (Free Space variation)
-        # Assume max distance 350m -> worst SINR -5dB, best distance 10m -> best SINR >= 25dB
-        base_sinr = 30.0 - (10.0 * math.log10(max(distance, 1.0)))
-        
-        # Add slight shadow fading variance
-        sinr = base_sinr + random.uniform(-2.0, 2.0)
-        sinr = max(-5.0, min(25.0, sinr))
-        
-        # Map SINR [-5, 25] to CQI [1, 15]
-        # Very rough 3GPP-like mapping
-        cqi = int(max(1, min(15, (sinr + 5) / 2)))
+        distance = max(distance, 1.0)  # Minimum 1m to avoid log(0)
+
+        # Path loss model parameters (urban microcell approximation)
+        pl_0 = 38.0           # Reference path loss at 1m (dB)
+        n = 2.5               # Path loss exponent (urban micro)
+        tx_power = 30.0       # Transmit power (dBm)
+        noise_floor = -100.0  # Thermal noise + interference (dBm)
+
+        # Path loss: PL = PL_0 + 10*n*log10(d)
+        path_loss = pl_0 + 10.0 * n * math.log10(distance)
+
+        # Received power = Tx - PL
+        rx_power = tx_power - path_loss
+
+        # SINR = Rx - Noise Floor
+        base_sinr = rx_power - noise_floor
+
+        # Add log-normal shadow fading (std dev ~4dB in urban environments)
+        shadow_fading = random.gauss(0, 4.0)
+        sinr = base_sinr + shadow_fading
+        sinr = max(-5.0, min(30.0, sinr))
+
+        # CQI mapping: linear approximation of 3GPP TS 38.214 Table 5.2.2.1-3
+        # This is a simplification; real CQI uses BLER-based lookup tables
+        # CQI 1 ~ SINR -6dB, CQI 15 ~ SINR 22dB (approximate)
+        cqi = int(max(1, min(15, round((sinr + 6) / 2))))
+
         return cqi, round(sinr, 2)
 
     def generate_traffic(self):

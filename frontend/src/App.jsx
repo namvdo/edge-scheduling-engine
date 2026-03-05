@@ -18,8 +18,9 @@ const generateDDPGData = (mode) => {
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('config');
-  // Fill initial buffer to render chart shapes
-  const [metrics, setMetrics] = useState(Array.from({ length: 20 }, (_, i) => ({ time: i, throughput: 0, latency: 0, utilization: 0, users: 0 })));
+  // Start empty - metrics will fill as data arrives (max 60 data points for 1 minute of history at 1Hz)
+  const MAX_HISTORY = 60;
+  const [metrics, setMetrics] = useState([]);
   const metricsRef = useRef([]);
   const [logs, setLogs] = useState([]);
   const [trainingMode, setTrainingMode] = useState('Train');
@@ -54,11 +55,9 @@ const App = () => {
       max_ues: configUes
     });
     setLogs(prev => [{ type: 'SYS', level: 'INFO', msg: `Applied new configuration. Sync interval set to ${syncInterval}s. Active RUs: ${configRu}, Active DUs: ${configDu}`, node: 'WebUI', ts: new Date().toLocaleTimeString('en-US', { hour12: false }) }, ...prev].slice(0, 10));
-    // Simulate config delay
+    // Simulate config delay - don't clear metrics to preserve history
     setTimeout(() => {
       setIsApplying(false);
-      metricsRef.current = [];
-      setMetrics([]);
     }, 1000);
   };
 
@@ -86,27 +85,27 @@ const App = () => {
   };
 
   // Process metrics specifically for the selected history node
-  const activeHistoryData = metrics.map((m) => {
-    let nodeData = { compute: 0, storage: 0, spectrum: 0 };
-    if (m.node_allocations) {
+  // Only include data points that have node_allocations for continuous lines
+  const activeHistoryData = metrics
+    .filter(m => m.node_allocations && m.node_allocations.length > 0)
+    .map((m, idx) => {
       const found = m.node_allocations.find(n => n.name === selectedSpikeNode);
-      if (found) nodeData = found;
-    }
-    return {
-      time: m.time,
-      CPU: nodeData.compute,
-      Storage: nodeData.storage,
-      Spectrum: nodeData.spectrum
-    };
-  });
+      const nodeData = found || { compute: 0, storage: 0, spectrum: 0 };
+      return {
+        time: idx, // Use sequential index for smooth X-axis
+        CPU: nodeData.compute,
+        Storage: nodeData.storage,
+        Spectrum: nodeData.spectrum
+      };
+    });
 
   useEffect(() => {
     if (lastJsonMessage) {
       if (lastJsonMessage.type === "METRICS") {
         setMetrics(prev => {
-          const newArr = [...prev.slice(1)];
-          newArr.push(lastJsonMessage);
-          metricsRef.current = newArr; // Update ref
+          // Keep up to MAX_HISTORY data points for continuous line charts
+          const newArr = prev.length >= MAX_HISTORY ? [...prev.slice(1), lastJsonMessage] : [...prev, lastJsonMessage];
+          metricsRef.current = newArr;
           return newArr;
         });
       } else {
