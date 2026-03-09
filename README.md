@@ -81,6 +81,35 @@ This project uses industry-standard 3GPP-based metrics to model the wireless env
 
 ---
 
+## Simulation & Traffic Models
+
+The system simulates a 5G/6G cell environment at **10Hz (100ms epochs)**. This high-fidelity simulation allows for testing real-time scheduling responses to rapid network changes.
+
+### 1. UE Mobility: Random Walk
+User Equipments (UEs) follow a **Random Walk** mobility model. In each 100ms epoch, UEs move a maximum of 5 meters in a random direction within the 500x500m cell boundary. This mobility directly impacts the signal quality (SINR) and subsequent CQI reporting.
+
+### 2. Traffic Arrival Models
+The simulator implements slice-specific stochastic models for traffic generation:
+
+| Slice Type | Model | Technical Description |
+| :--- | :--- | :--- |
+| **eMBB** | **Poisson Arrival** | Uses an exponential distribution to simulate high-bandwidth, variable flow (e.g., streaming). |
+| **URLLC** | **Heartbeat** | Generates small, steady data chunks to emulate low-latency control signals (e.g., V2X). |
+| **mMTC** | **Bernoulli Burst** | Probabilistic burst modeling (20% chance) for periodic IoT sensor telemetry. |
+
+### 3. Physical Layer Modeling
+Requests are processed through a physical channel simulation before reaching the scheduler:
+*   **Path Loss**: Calculated using the 3GPP Urban Microcell model based on 2D distance.
+*   **Shadow Fading**: Applies Log-normal fading (std dev ~4dB) to simulate urban obstructions.
+*   **CQI Mapping**: SINR is mapped to a Channel Quality Indicator (1-15), which dictates spectral efficiency (bytes/PRB).
+
+### 4. Network Demand Scaling
+Aggregate demand is not static; it scales dynamically with the **UE Load Factor**:
+*   **Weighted Demand**: Slices carry different "bandwidth weights" (eMBB: 1.0, URLLC: 0.5, mMTC: 0.05).
+*   **Density Scaling**: As the total UE count grows, the system automatically increases the proportion of **mMTC** traffic, simulating the massive scaling characteristic of IoT-heavy 6G environments.
+
+---
+
 ## Getting Started
 
 ### Prerequisites
