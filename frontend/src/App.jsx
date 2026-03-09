@@ -119,17 +119,17 @@ const App = () => {
 
   const getNodeColorClass = (nodeName, defaultClasses) => {
     const latest = metrics[metrics.length - 1];
-    if (!latest || !latest.node_allocations) return `${defaultClasses} border-emerald-500 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]`;
+    if (!latest || !latest.node_allocations) return `${defaultClasses} border-emerald-600/50 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]`;
 
     const node = latest.node_allocations.find(n => n.name === nodeName);
-    if (!node) return `${defaultClasses} border-emerald-500 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]`;
+    if (!node) return `${defaultClasses} border-emerald-600/50 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]`;
 
     if (node.compute > 85) {
-      return `${defaultClasses} border-rose-500 text-rose-200 shadow-[0_0_30px_rgba(244,63,94,0.6)] animate-[pulse_2s_infinite]`;
+      return `${defaultClasses} border-rose-500/80 text-rose-100 shadow-[0_0_25px_rgba(244,63,94,0.4)] animate-[pulse_2s_infinite]`;
     } else if (node.compute > 60) {
-      return `${defaultClasses} border-amber-500 text-amber-200 shadow-[0_0_25px_rgba(245,158,11,0.4)]`;
+      return `${defaultClasses} border-amber-500/80 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.25)]`;
     }
-    return `${defaultClasses} border-emerald-500 text-slate-300 shadow-[0_0_15px_rgba(16,185,129,0.4)]`;
+    return `${defaultClasses} border-emerald-600/60 text-emerald-50 shadow-[0_0_15px_rgba(16,185,129,0.2)]`;
   };
 
   const getTooltipData = (nodeName) => {
@@ -141,11 +141,11 @@ const App = () => {
   const getLinkProps = (nodeName, defaultText) => {
     const data = getTooltipData(nodeName);
     if (data.compute > 85) {
-      return { stroke: "#f43f5e", strokeWidth: 6, opacity: "opacity-80", textFill: "#f43f5e", text: `Util: ${data.compute}%` };
+      return { stroke: "#f43f5e", strokeWidth: 6, opacity: "opacity-60", textFill: "#f43f5e", text: `Util: ${data.compute}%` };
     } else if (data.compute > 60) {
-      return { stroke: "#f59e0b", strokeWidth: 4, opacity: "opacity-70", textFill: "#f59e0b", text: `Util: ${data.compute}%` };
+      return { stroke: "#f59e0b", strokeWidth: 4, opacity: "opacity-50", textFill: "#f59e0b", text: `Util: ${data.compute}%` };
     }
-    return { stroke: "#334155", strokeWidth: 3, opacity: "opacity-100", textFill: "#64748b", text: defaultText };
+    return { stroke: "#1e293b", strokeWidth: 3, opacity: "opacity-100", textFill: "#475569", text: defaultText };
   };
 
   const getLayout = (config) => {
@@ -188,12 +188,12 @@ const App = () => {
       {/* Header */}
       <header className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-cyan-950/50 rounded-lg border border-cyan-800 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-            <Network className="w-6 h-6 text-cyan-400" />
+          <div className="p-2 bg-emerald-950/50 rounded-lg border border-emerald-800 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+            <Network className="w-6 h-6 text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-wide">
-              6G ADVANCED RESOURCE SCHEDULER
+            <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-100 to-teal-400 bg-clip-text text-transparent tracking-wide">
+              5G RESOURCE SCHEDULER
             </h1>
             <p className="text-xs text-slate-500 tracking-wider">DRS-SIM v3.1 | DISTRIBUTED EDGE ENGINE</p>
           </div>
@@ -201,10 +201,10 @@ const App = () => {
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-full border border-slate-800 text-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-emerald-400 font-medium">System Online</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500/80 animate-pulse"></span>
+            <span className="text-emerald-500 font-medium">System Online</span>
           </div>
-          <button className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-cyan-400">
+          <button className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-emerald-400">
             <Settings className="w-5 h-5" />
           </button>
         </div>
@@ -220,7 +220,7 @@ const App = () => {
           <div className="bg-slate-900/50 rounded-xl border border-slate-800 p-4 relative overflow-hidden backdrop-blur-sm shadow-xl h-[800px]">
             <div className="flex justify-between items-center mb-4 relative z-10">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Wifi className="w-5 h-5 text-cyan-500" />
+                <Wifi className="w-5 h-5 text-emerald-500" />
                 Live 5G/6G Network Topology Map
               </h2>
               <div className="flex gap-4 text-xs font-medium">
@@ -269,13 +269,13 @@ const App = () => {
                     const sizeClass = isRU ? 'w-16 h-16 text-xs' : (isDU ? (n.id.includes('Core') ? 'w-24 h-24 text-base' : 'w-20 h-20 text-sm') : 'w-20 h-20 text-sm');
                     const borderClass = isRU ? 'border-[3px]' : (isDU && n.id.includes('Core') ? 'border-[5px]' : 'border-[4px]');
                     const tooltipData = getTooltipData(n.id);
-                    const computeColor = tooltipData.compute > 85 ? '#f43f5e' : tooltipData.compute > 60 ? '#f59e0b' : '#22d3ee';
-                    const storageColor = tooltipData.storage > 85 ? '#f43f5e' : tooltipData.storage > 60 ? '#f59e0b' : '#a78bfa';
-                    const spectrumColor = '#34d399';
+                    const computeColor = tooltipData.compute > 85 ? '#f43f5e' : tooltipData.compute > 60 ? '#f59e0b' : '#10b981';
+                    const storageColor = tooltipData.storage > 85 ? '#f43f5e' : tooltipData.storage > 60 ? '#f59e0b' : '#64748b';
+                    const spectrumColor = '#059669';
 
                     // Leader DU gets gold border + glow override
                     const leaderClass = isLeader
-                      ? `${sizeClass} border-[4px] border-amber-400 text-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.6)] rounded-full bg-slate-900 flex items-center justify-center font-bold transition-all duration-300 relative z-10`
+                      ? `${sizeClass} border-[4px] border-amber-400/80 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.3)] rounded-full bg-slate-900 flex items-center justify-center font-bold transition-all duration-300 relative z-10`
                       : getNodeColorClass(n.id, `${sizeClass} ${borderClass} rounded-full bg-slate-900 flex items-center justify-center font-bold transition-all duration-300 relative z-10`);
 
                     return (
@@ -288,16 +288,16 @@ const App = () => {
                         )}
                         {/* Follower badge for non-leader DUs */}
                         {isDU && !isLeader && (
-                          <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-500 bg-slate-800 border border-slate-600 rounded px-1 z-50">
+                          <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-500 bg-slate-800 border border-slate-700 rounded px-1 z-50">
                             F
                           </div>
                         )}
                         <div className={leaderClass}>{n.id}</div>
                         {/* Resource usage panel - appears beside the node on hover */}
-                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-slate-950 border-2 border-cyan-500/60 py-2.5 px-3.5 rounded-xl text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-40 shadow-[0_0_25px_rgba(6,182,212,0.3)] min-w-[160px]">
+                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-slate-950/95 border-2 border-emerald-600/40 py-2.5 px-3.5 rounded-xl text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-40 shadow-2xl min-w-[160px]">
                           {/* Arrow pointing left */}
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[8px] border-r-cyan-500/60"></div>
-                          <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2 border-b border-slate-700 pb-1 flex items-center gap-1">
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[8px] border-r-emerald-600/40"></div>
+                          <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-2 border-b border-slate-800 pb-1 flex items-center gap-1">
                             {n.id} Resources
                             {isLeader && <span className="text-amber-400 ml-1">👑 Leader</span>}
                           </div>
@@ -347,24 +347,24 @@ const App = () => {
             <div className="bg-slate-900/40 rounded-xl border border-slate-800 p-4 flex flex-col shadow-lg backdrop-blur-sm">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-sm flex items-center gap-2 text-slate-200">
-                  <Activity className="w-4 h-4 text-purple-400" />
+                  <Activity className="w-4 h-4 text-teal-400" />
                   1) DDPG Training Monitor
                 </h3>
                 <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1">
                   <button
                     onClick={() => setTrainingMode('Train')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${trainingMode === 'Train' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${trainingMode === 'Train' ? 'bg-teal-500/20 text-teal-400 border border-teal-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
                   >Train</button>
                   <button
                     onClick={() => setTrainingMode('Eval')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${trainingMode === 'Eval' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${trainingMode === 'Eval' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
                   >Evaluate</button>
                 </div>
               </div>
 
               <div className="flex gap-4 text-[10px] text-slate-400 mb-2 px-2">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-purple-500"></span>Critic Loss</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-cyan-500"></span>Total Reward</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-teal-600"></span>Critic Loss</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500"></span>Total Reward</span>
               </div>
 
               <div className="flex-1 w-full min-h-[70px]">
@@ -373,11 +373,11 @@ const App = () => {
                     <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={40} />
                     <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} width={40} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.9)', borderColor: '#1e293b', borderRadius: '8px', fontSize: '11px', backdropFilter: 'blur(4px)' }}
+                      contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.95)', borderColor: '#1e293b', borderRadius: '8px', fontSize: '11px', backdropFilter: 'blur(4px)' }}
                       itemStyle={{ color: '#cbd5e1' }}
                     />
-                    <Line yAxisId="left" type="monotone" dataKey="criticLoss" stroke="#a855f7" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-                    <Line yAxisId="right" type="monotone" dataKey="reward" stroke="#0ea5e9" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                    <Line yAxisId="left" type="monotone" dataKey="criticLoss" stroke="#0d9488" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="reward" stroke="#10b981" strokeWidth={1.5} dot={false} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -387,7 +387,7 @@ const App = () => {
             <div className="bg-slate-900/40 rounded-xl border border-slate-800 p-4 flex flex-col shadow-lg backdrop-blur-sm">
               <div className="flex justify-between items-center mb-4 text-slate-200">
                 <h3 className="font-semibold text-sm flex items-center gap-2">
-                  <Server className="w-4 h-4 text-blue-400" />
+                  <Server className="w-4 h-4 text-emerald-400" />
                   2) RAFT Consensus View
                 </h3>
               </div>
@@ -395,31 +395,31 @@ const App = () => {
               <div className="grid grid-cols-4 gap-3 mb-3">
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">RUs Online</div>
-                  <div className="text-cyan-400 font-mono text-xs flex items-center gap-2">
+                  <div className="text-emerald-500/80 font-mono text-xs flex items-center gap-2">
                     {appliedConfig.ru} Radio Units
                   </div>
                 </div>
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">DUs Active</div>
-                  <div className="text-green-400 font-mono text-xs flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                  <div className="text-teal-500/80 font-mono text-xs flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500/60 animate-pulse"></span>
                     {appliedConfig.du} (Tol: {Math.floor((appliedConfig.du - 1) / 2)})
                   </div>
                 </div>
                 {/* RAFT Leader Card */}
-                <div className="bg-amber-950/30 border border-amber-500/40 rounded-lg p-2 flex flex-col justify-center shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-                  <div className="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
+                <div className="bg-amber-950/20 border border-amber-500/20 rounded-lg p-2 flex flex-col justify-center shadow-lg">
+                  <div className="text-[10px] text-amber-500/70 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
                     <span>👑</span> RAFT Leader
                   </div>
-                  <div className="text-amber-300 font-mono text-xs font-bold tracking-wide">
+                  <div className="text-amber-200/90 font-mono text-xs font-bold tracking-wide">
                     {metrics[metrics.length - 1]?.raft_leader || 'DU-1'}
                   </div>
                 </div>
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">Global State</div>
-                  <div className="text-slate-300 font-mono text-xs flex justify-between">
-                    <span>T: <span className="text-cyan-400">{metrics[metrics.length - 1]?.raft_term || 452}</span></span>
-                    <span>Idx: <span className="text-purple-400">{(metrics[metrics.length - 1]?.raft_log_index || 18970).toLocaleString()}</span></span>
+                  <div className="text-slate-400 font-mono text-xs flex justify-between">
+                    <span>T: <span className="text-emerald-500/80">{metrics[metrics.length - 1]?.raft_term || 452}</span></span>
+                    <span>Idx: <span className="text-teal-500/80">{(metrics[metrics.length - 1]?.raft_log_index || 18970).toLocaleString()}</span></span>
                   </div>
                 </div>
               </div>
@@ -449,13 +449,13 @@ const App = () => {
             {/* Tabs */}
             <div className="flex bg-slate-950/40">
               <button
-                className={`flex-1 py-3 text-sm font-medium transition-all ${activeTab === 'config' ? 'bg-slate-800/80 text-cyan-400 border-t-2 border-cyan-400 shadow-inner text-shadow-sm shadow-cyan-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'}`}
+                className={`flex-1 py-3 text-sm font-medium transition-all ${activeTab === 'config' ? 'bg-slate-800/80 text-emerald-400 border-t-2 border-emerald-400 shadow-inner text-shadow-sm shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'}`}
                 onClick={() => setActiveTab('config')}
               >
                 Configuration
               </button>
               <button
-                className={`flex-1 py-3 text-sm font-medium transition-all border-l border-slate-800 ${activeTab === 'history' ? 'bg-slate-800/80 text-purple-400 border-t-2 border-purple-400 shadow-inner text-shadow-sm shadow-purple-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'}`}
+                className={`flex-1 py-3 text-sm font-medium transition-all border-l border-slate-800 ${activeTab === 'history' ? 'bg-slate-800/80 text-teal-400 border-t-2 border-teal-400 shadow-inner text-shadow-sm shadow-teal-500/20' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900'}`}
                 onClick={() => setActiveTab('history')}
               >
                 History
@@ -468,7 +468,7 @@ const App = () => {
                 <div className="space-y-5">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Scheduling Algorithm</label>
-                    <select className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 transition-colors shadow-inner appearance-none cursor-pointer">
+                    <select className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-emerald-500 transition-colors shadow-inner appearance-none cursor-pointer">
                       <option>DDPG Edge AI (Active)</option>
                       <option>Stackelberg Game Theory</option>
                       <option>Static Capacity PF</option>
@@ -479,7 +479,7 @@ const App = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">RUs (Radio Units)</label>
-                        <select value={configRu} onChange={(e) => setConfigRu(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono appearance-none cursor-pointer">
+                        <select value={configRu} onChange={(e) => setConfigRu(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-emerald-500 shadow-inner font-mono appearance-none cursor-pointer">
                           {[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
                             <option key={`ru-${num}`} value={num}>{num} RUs {num === 5 ? '(Default)' : ''}</option>
                           ))}
@@ -487,7 +487,7 @@ const App = () => {
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">DUs (Distributed Units)</label>
-                        <select value={configDu} onChange={(e) => setConfigDu(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono appearance-none cursor-pointer">
+                        <select value={configDu} onChange={(e) => setConfigDu(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-emerald-500 shadow-inner font-mono appearance-none cursor-pointer">
                           {[3, 5, 7, 9].map(num => (
                             <option key={`du-${num}`} value={num}>{num} DUs {num === 5 ? '(Default)' : ''}</option>
                           ))}
@@ -496,16 +496,16 @@ const App = () => {
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Max UEs / Cell</label>
-                      <input type="number" value={configUes} onChange={(e) => setConfigUes(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-cyan-500 shadow-inner font-mono" />
+                      <input type="number" value={configUes} onChange={(e) => setConfigUes(Number(e.target.value))} className="w-full bg-slate-950/80 border border-slate-700/50 rounded-lg p-2.5 text-sm text-slate-200 outline-none focus:border-emerald-500 shadow-inner font-mono" />
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
                       <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Cloud Sync Interval</label>
-                      <span className="text-xs text-cyan-400 font-mono">{syncInterval}s</span>
+                      <span className="text-xs text-emerald-400 font-mono">{syncInterval}s</span>
                     </div>
-                    <input type="range" min="1" max="60" value={syncInterval} onChange={(e) => setSyncInterval(e.target.value)} className="w-full accent-cyan-500 h-1.5 rounded-lg appearance-none bg-slate-800 cursor-pointer" />
+                    <input type="range" min="1" max="60" value={syncInterval} onChange={(e) => setSyncInterval(e.target.value)} className="w-full accent-emerald-500 h-1.5 rounded-lg appearance-none bg-slate-800 cursor-pointer" />
                   </div>
 
                   {/* Stress Testing Section */}
@@ -537,9 +537,9 @@ const App = () => {
                   <button
                     onClick={() => handleApplyConfig()}
                     disabled={isApplying}
-                    className={`w-full mt-2 font-medium py-2.5 rounded-lg shadow-[0_4px_15px_rgba(6,182,212,0.25)] transition-all flex justify-center items-center gap-2 border border-cyan-400/20 active:scale-[0.98] ${isApplying ? 'bg-cyan-800 text-cyan-400 cursor-wait' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white'}`}
+                    className={`w-full mt-2 font-medium py-2.5 rounded-lg shadow-xl transition-all flex justify-center items-center gap-2 border border-emerald-400/20 active:scale-[0.98] ${isApplying ? 'bg-emerald-800/80 text-emerald-100 cursor-wait' : 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white'}`}
                   >
-                    {isApplying ? <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div> : <Settings className="w-4 h-4" />}
+                    {isApplying ? <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div> : <Settings className="w-4 h-4" />}
                     {isApplying ? 'Applying...' : 'Apply Configuration'}
                   </button>
                 </div>
@@ -560,9 +560,9 @@ const App = () => {
                   </div>
 
                   <div className="flex gap-4 text-[9px] font-mono text-slate-400 mb-1 justify-center">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-cyan-400"></span>CPU (%)</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-fuchsia-400"></span>Mem (MB)</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-400"></span>PRB</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500"></span>CPU (%)</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-teal-500"></span>Mem (MB)</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-slate-500"></span>PRB</span>
                   </div>
 
                   <div className="flex-1 w-full min-h-[220px] bg-slate-950/50 rounded-lg border border-slate-800/80 p-2">
@@ -576,9 +576,9 @@ const App = () => {
                           contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.9)', borderColor: '#1e293b', borderRadius: '8px', fontSize: '10px' }}
                           itemStyle={{ color: '#cbd5e1' }}
                         />
-                        <Line yAxisId="left" type="monotone" dataKey="CPU" stroke="#22d3ee" strokeWidth={2} dot={false} isAnimationActive={false} />
-                        <Line yAxisId="left" type="monotone" dataKey="Storage" stroke="#e879f9" strokeWidth={2} dot={false} isAnimationActive={false} />
-                        <Line yAxisId="right" type="monotone" dataKey="Spectrum" stroke="#34d399" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line yAxisId="left" type="monotone" dataKey="CPU" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line yAxisId="left" type="monotone" dataKey="Storage" stroke="#0d9488" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line yAxisId="right" type="monotone" dataKey="Spectrum" stroke="#64748b" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -617,11 +617,11 @@ const App = () => {
                     <AreaChart data={metrics}>
                       <defs>
                         <linearGradient id="colorTp" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.5} />
-                          <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <Area type="monotone" dataKey="throughput" stroke="#0ea5e9" strokeWidth={2} fillOpacity={1} fill="url(#colorTp)" isAnimationActive={false} />
+                      <Area type="monotone" dataKey="throughput" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorTp)" isAnimationActive={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -641,11 +641,11 @@ const App = () => {
                     <AreaChart data={metrics}>
                       <defs>
                         <linearGradient id="colorLat" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#a855f7" stopOpacity={0.5} />
-                          <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#0d9488" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <Area type="step" dataKey="latency" stroke="#a855f7" strokeWidth={2} fillOpacity={1} fill="url(#colorLat)" isAnimationActive={false} />
+                      <Area type="step" dataKey="latency" stroke="#0d9488" strokeWidth={2} fillOpacity={1} fill="url(#colorLat)" isAnimationActive={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -655,7 +655,7 @@ const App = () => {
                 {/* Metric: Users */}
                 <div className="bg-slate-950/50 border border-slate-800/50 p-2 rounded-lg flex flex-col items-center justify-center">
                   <div className="text-[10px] text-slate-400 mb-1">Active UEs</div>
-                  <div className="text-xl font-bold text-cyan-400 font-mono tracking-tighter">{metrics[metrics.length - 1]?.users || 0}</div>
+                  <div className="text-xl font-bold text-emerald-400 font-mono tracking-tighter">{metrics[metrics.length - 1]?.users || 0}</div>
                 </div>
                 {/* Metric: Util */}
                 <div className="bg-slate-950/50 border border-slate-800/50 p-2 rounded-lg flex flex-col items-center justify-center">
@@ -669,12 +669,12 @@ const App = () => {
                 <div className="bg-slate-950/50 border border-slate-800/50 p-3 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
                   <div className="text-[10px] text-slate-400 mb-2 w-full text-left uppercase tracking-wider font-semibold">Dynamic TDD Split</div>
                   <div className="flex w-full h-3 rounded-full overflow-hidden bg-slate-800 mb-2">
-                    <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${metrics[metrics.length - 1]?.tdd_dl || 50}%` }}></div>
-                    <div className="bg-purple-500 h-full transition-all duration-500" style={{ width: `${metrics[metrics.length - 1]?.tdd_ul || 50}%` }}></div>
+                    <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${metrics[metrics.length - 1]?.tdd_dl || 50}%` }}></div>
+                    <div className="bg-teal-600 h-full transition-all duration-500" style={{ width: `${metrics[metrics.length - 1]?.tdd_ul || 50}%` }}></div>
                   </div>
                   <div className="flex justify-between w-full text-[9px] font-mono font-bold">
-                    <span className="text-cyan-400">DL: {metrics[metrics.length - 1]?.tdd_dl || 50}%</span>
-                    <span className="text-purple-400">UL: {metrics[metrics.length - 1]?.tdd_ul || 50}%</span>
+                    <span className="text-emerald-400/90">DL: {metrics[metrics.length - 1]?.tdd_dl || 50}%</span>
+                    <span className="text-teal-500/90">UL: {metrics[metrics.length - 1]?.tdd_ul || 50}%</span>
                   </div>
                 </div>
 
@@ -701,9 +701,9 @@ const App = () => {
                       <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
                       <Tooltip cursor={{ fill: '#0f172a' }} contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.9)', borderColor: '#1e293b', borderRadius: '8px', fontSize: '10px' }} />
-                      <Bar dataKey="spectrum" name="Spectrum (PRBs)" fill="#0ea5e9" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="compute" name="Compute (%)" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="storage" name="Storage (Buffer MB)" fill="#f43f5e" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="spectrum" name="Spectrum (PRBs)" fill="#059669" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="compute" name="Compute (%)" fill="#0d9488" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="storage" name="Storage (Buffer MB)" fill="#64748b" radius={[2, 2, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -721,7 +721,7 @@ const App = () => {
             <span key={`ticker-${i}`} className={`flex items-center gap-2 ${log.level === 'CRIT' ? 'text-rose-200' : 'text-slate-300'}`}>
               {log.level === 'CRIT' && <span className="text-rose-500 font-bold">{log.ts} | CRIT</span>}
               {log.level === 'WARN' && <span className="text-amber-500 font-bold">{log.ts} | WARN</span>}
-              {log.level === 'INFO' && <span className="text-blue-500 font-bold">{log.ts} | INFO</span>}
+              {log.level === 'INFO' && <span className="text-emerald-500 font-bold">{log.ts} | INFO</span>}
               {log.msg}
             </span>
           ))}
@@ -730,7 +730,7 @@ const App = () => {
             <span key={`ticker-dup-${i}`} className={`flex items-center gap-2 ${log.level === 'CRIT' ? 'text-rose-200' : 'text-slate-300'}`}>
               {log.level === 'CRIT' && <span className="text-rose-500 font-bold">{log.ts} | CRIT</span>}
               {log.level === 'WARN' && <span className="text-amber-500 font-bold">{log.ts} | WARN</span>}
-              {log.level === 'INFO' && <span className="text-blue-500 font-bold">{log.ts} | INFO</span>}
+              {log.level === 'INFO' && <span className="text-emerald-500 font-bold">{log.ts} | INFO</span>}
               {log.msg}
             </span>
           ))}
