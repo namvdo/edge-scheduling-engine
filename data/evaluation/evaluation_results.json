@@ -1,0 +1,134 @@
+{
+  "timestamp": "2026-03-05T18:18:43.520466",
+  "scheduling_stats": {
+    "total_scheduling_decisions": 10000,
+    "avg_scheduling_latency_ms": 100.9437775110044,
+    "std_scheduling_latency_ms": 0.38483702515846946,
+    "p95_scheduling_latency_ms": 101.0,
+    "p99_scheduling_latency_ms": 102.0,
+    "latency_95ci_lower": 100.93623319629744,
+    "latency_95ci_upper": 100.95132182571136,
+    "tdd_avg_dl_percent": 10.6603,
+    "tdd_std_dl_percent": 7.226956753018518,
+    "tdd_min_dl_percent": 10,
+    "tdd_max_dl_percent": 90,
+    "tdd_histogram": {
+      "10-30%": 99.17,
+      "30-50%": 0.0,
+      "50-70%": 0.01,
+      "70-90%": 0.8200000000000001
+    },
+    "avg_prb_allocation_per_epoch": 99.75,
+    "prb_utilization_percent": 99.75,
+    "dl_starvation_rate_percent": 64.16499498495486,
+    "ul_starvation_rate_percent": 98.62537612838516,
+    "combined_starvation_rate_percent": 81.39518555667001,
+    "slice_statistics": {
+      "URLLC": {
+        "avg_dl_buffer_kb": 6741.378333563616,
+        "std_dl_buffer_kb": 4759.3633378403365,
+        "avg_ul_buffer_kb": 6183.337291481976,
+        "std_ul_buffer_kb": 4335.935075738131,
+        "avg_cqi": 5.69945212627185,
+        "std_cqi": 1.2432337537876315,
+        "avg_sinr_db": 7.3940497790878945,
+        "std_sinr_db": 2.4059562327735557,
+        "avg_prbs_allocated": 5.959300808765979,
+        "std_prbs_allocated": 0.9653915401296733,
+        "total_samples": 72827,
+        "dl_starvation_rate": 99.07039971439164,
+        "ul_starvation_rate": 99.36287365949443
+      },
+      "eMBB": {
+        "avg_dl_buffer_kb": 130338.03184067603,
+        "std_dl_buffer_kb": 94734.41505816855,
+        "avg_ul_buffer_kb": 25092.264273298206,
+        "std_ul_buffer_kb": 18035.989471172514,
+        "avg_cqi": 5.878515024832958,
+        "std_cqi": 1.43821368676497,
+        "avg_sinr_db": 7.750253474167202,
+        "std_sinr_db": 2.8171254234232785,
+        "avg_prbs_allocated": 8.769785972058456,
+        "std_prbs_allocated": 1.3689032584475829,
+        "total_samples": 55974,
+        "dl_starvation_rate": 99.68020866831029,
+        "ul_starvation_rate": 99.64090470575624
+      },
+      "mMTC": {
+        "avg_dl_buffer_kb": 40.62658033842548,
+        "std_dl_buffer_kb": 22.430684435273122,
+        "avg_ul_buffer_kb": 652.7157872250979,
+        "std_ul_buffer_kb": 422.66051732575835,
+        "avg_cqi": 5.963285598946161,
+        "std_cqi": 1.4006210581771597,
+        "avg_sinr_db": 7.922930640743502,
+        "std_sinr_db": 2.7378989222045353,
+        "avg_prbs_allocated": 1.0286547968101531,
+        "std_prbs_allocated": 0.3089121636110858,
+        "total_samples": 70599,
+        "dl_starvation_rate": 0.0,
+        "ul_starvation_rate": 97.05944843411379
+      }
+    },
+    "baseline_comparison": {
+      "ddpg_avg_unmet_demand_bytes": 992183948.7812,
+      "static_avg_unmet_demand_bytes": 992183948.7812,
+      "improvement_percent": 0.0,
+      "ddpg_dl_satisfaction_rate": 0.0,
+      "static_dl_satisfaction_rate": 0.0
+    }
+  },
+  "raft_parameters": {
+    "election_timeout_min_ms": 150,
+    "election_timeout_max_ms": 300,
+    "heartbeat_interval_ms": 50,
+    "log_replication_rpc_timeout_ms": 100,
+    "cluster_size": 3,
+    "fault_tolerance": 1,
+    "consensus_algorithm": "Raft",
+    "expected_election_time_ms": 225
+  },
+  "ddpg_parameters": {
+    "actor_architecture": "Linear(4\u2192256\u2192256\u21921)",
+    "critic_architecture": "Linear(5\u2192256\u2192256\u21921)",
+    "state_dimension": 4,
+    "action_dimension": 1,
+    "replay_buffer_capacity": 100000,
+    "batch_size": 64,
+    "gamma_discount": 0.99,
+    "tau_soft_update": 0.005,
+    "actor_learning_rate": 0.0001,
+    "critic_learning_rate": 0.001,
+    "noise_type": "Ornstein-Uhlenbeck",
+    "training_episodes": 200,
+    "episode_length": 50
+  },
+  "simulator_parameters": {
+    "cell_radius_meters": 250,
+    "total_prbs": 100,
+    "default_ue_count": 20,
+    "epoch_duration_ms": 100,
+    "scheduling_frequency_hz": 10,
+    "mobility_model": "Random Walk",
+    "max_mobility_per_epoch_m": 5,
+    "path_loss_model": "Free Space (simplified)",
+    "sinr_range_db": [
+      -5,
+      25
+    ],
+    "cqi_range": [
+      1,
+      15
+    ],
+    "slice_types": [
+      "eMBB",
+      "URLLC",
+      "mMTC"
+    ],
+    "traffic_models": {
+      "eMBB": "Exponential DL (mean 50kB), Exponential UL (mean 10kB)",
+      "URLLC": "Uniform DL/UL (0-5kB)",
+      "mMTC": "Bursty UL (20% probability, 500-2000B)"
+    }
+  }
+}

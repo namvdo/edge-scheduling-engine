@@ -1,0 +1,35 @@
+
+\begin{table}[h]
+\centering
+\caption{Edge Scheduling Engine Performance Metrics}
+\label{tab:performance}
+\begin{tabular}{|l|r|}
+\hline
+\textbf{Metric} & \textbf{Value} \\
+\hline
+Total Scheduling Decisions & 10,000 \\
+Avg Scheduling Latency & 100.94 ms \\
+95th Percentile Latency & 101.00 ms \\
+99th Percentile Latency & 102.00 ms \\
+Avg TDD DL Ratio & 10.7\% \\
+TDD Ratio Std Dev & 7.23\% \\
+Avg PRBs Allocated/Epoch & 99.8 \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\begin{table}[h]
+\centering
+\caption{Per-Slice Network Statistics}
+\label{tab:slice_stats}
+\begin{tabular}{|l|r|r|r|r|r|}
+\hline
+\textbf{Slice} & \textbf{Avg DL (kB)} & \textbf{Avg UL (kB)} & \textbf{Avg CQI} & \textbf{Avg SINR} & \textbf{Avg PRBs} \\
+\hline
+eMBB & 130338.0 & 25092.3 & 5.9 & 7.8 dB & 8.8 \\
+URLLC & 6741.4 & 6183.3 & 5.7 & 7.4 dB & 6.0 \\
+mMTC & 40.6 & 652.7 & 6.0 & 7.9 dB & 1.0 \\
+\hline
+\end{tabular}
+\end{table}

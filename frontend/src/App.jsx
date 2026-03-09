@@ -261,18 +261,76 @@ const App = () => {
                 {/* Nodes rendering using absolute positioning */}
                 {(() => {
                   const layout = getLayout(appliedConfig);
+                  const currentLeader = metrics[metrics.length - 1]?.raft_leader || 'DU-1';
                   return layout.nodes.map((n, idx) => {
                     const isRU = n.id.startsWith('RU');
                     const isDU = n.id.startsWith('DU');
+                    const isLeader = n.id === currentLeader;
                     const sizeClass = isRU ? 'w-16 h-16 text-xs' : (isDU ? (n.id.includes('Core') ? 'w-24 h-24 text-base' : 'w-20 h-20 text-sm') : 'w-20 h-20 text-sm');
                     const borderClass = isRU ? 'border-[3px]' : (isDU && n.id.includes('Core') ? 'border-[5px]' : 'border-[4px]');
+                    const tooltipData = getTooltipData(n.id);
+                    const computeColor = tooltipData.compute > 85 ? '#f43f5e' : tooltipData.compute > 60 ? '#f59e0b' : '#22d3ee';
+                    const storageColor = tooltipData.storage > 85 ? '#f43f5e' : tooltipData.storage > 60 ? '#f59e0b' : '#a78bfa';
+                    const spectrumColor = '#34d399';
+
+                    // Leader DU gets gold border + glow override
+                    const leaderClass = isLeader
+                      ? `${sizeClass} border-[4px] border-amber-400 text-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.6)] rounded-full bg-slate-900 flex items-center justify-center font-bold transition-all duration-300 relative z-10`
+                      : getNodeColorClass(n.id, `${sizeClass} ${borderClass} rounded-full bg-slate-900 flex items-center justify-center font-bold transition-all duration-300 relative z-10`);
 
                     return (
                       <div key={idx} className="absolute flex flex-col items-center group cursor-pointer z-30" style={{ top: n.y, left: n.x, transform: 'translate(-50%, -50%)' }}>
-                        <div className={getNodeColorClass(n.id, `${sizeClass} ${borderClass} rounded-full bg-slate-900 flex items-center justify-center font-bold transition-all duration-300`)}>{n.id}</div>
-                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-slate-700 py-1.5 px-3 rounded-lg text-xs whitespace-nowrap backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          <div className="text-slate-400">Compute: <span className="text-cyan-400 font-mono">{getTooltipData(n.id).compute}%</span></div>
-                          <div className="text-slate-400">Spectrum: <span className="text-purple-400 font-mono">{getTooltipData(n.id).spectrum} PRBs</span></div>
+                        {/* Crown badge for RAFT leader */}
+                        {isLeader && (
+                          <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-amber-400 text-sm z-50 animate-bounce" title="RAFT Leader">
+                            👑
+                          </div>
+                        )}
+                        {/* Follower badge for non-leader DUs */}
+                        {isDU && !isLeader && (
+                          <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-500 bg-slate-800 border border-slate-600 rounded px-1 z-50">
+                            F
+                          </div>
+                        )}
+                        <div className={leaderClass}>{n.id}</div>
+                        {/* Resource usage panel - appears beside the node on hover */}
+                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-slate-950 border-2 border-cyan-500/60 py-2.5 px-3.5 rounded-xl text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-40 shadow-[0_0_25px_rgba(6,182,212,0.3)] min-w-[160px]">
+                          {/* Arrow pointing left */}
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[8px] border-r-cyan-500/60"></div>
+                          <div className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-2 border-b border-slate-700 pb-1 flex items-center gap-1">
+                            {n.id} Resources
+                            {isLeader && <span className="text-amber-400 ml-1">👑 Leader</span>}
+                          </div>
+                          {/* Compute */}
+                          <div className="mb-1.5">
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="text-slate-400 text-[11px] font-medium">Compute</span>
+                              <span className="font-mono font-bold text-[12px]" style={{ color: computeColor }}>{tooltipData.compute}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${tooltipData.compute}%`, backgroundColor: computeColor }}></div>
+                            </div>
+                          </div>
+                          {/* Storage */}
+                          <div className="mb-1.5">
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="text-slate-400 text-[11px] font-medium">Storage</span>
+                              <span className="font-mono font-bold text-[12px]" style={{ color: storageColor }}>{tooltipData.storage} MB</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${tooltipData.storage}%`, backgroundColor: storageColor }}></div>
+                            </div>
+                          </div>
+                          {/* Spectrum */}
+                          <div>
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="text-slate-400 text-[11px] font-medium">Spectrum</span>
+                              <span className="font-mono font-bold text-[12px]" style={{ color: spectrumColor }}>{tooltipData.spectrum} PRBs</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, tooltipData.spectrum / 4)}%`, backgroundColor: spectrumColor }}></div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -334,7 +392,7 @@ const App = () => {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="grid grid-cols-4 gap-3 mb-3">
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">RUs Online</div>
                   <div className="text-cyan-400 font-mono text-xs flex items-center gap-2">
@@ -348,11 +406,20 @@ const App = () => {
                     {appliedConfig.du} (Tol: {Math.floor((appliedConfig.du - 1) / 2)})
                   </div>
                 </div>
+                {/* RAFT Leader Card */}
+                <div className="bg-amber-950/30 border border-amber-500/40 rounded-lg p-2 flex flex-col justify-center shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+                  <div className="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
+                    <span>👑</span> RAFT Leader
+                  </div>
+                  <div className="text-amber-300 font-mono text-xs font-bold tracking-wide">
+                    {metrics[metrics.length - 1]?.raft_leader || 'DU-1'}
+                  </div>
+                </div>
                 <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-2 flex flex-col justify-center">
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1">Global State</div>
                   <div className="text-slate-300 font-mono text-xs flex justify-between">
-                    <span>T: <span className="text-cyan-400">452</span></span>
-                    <span>Idx: <span className="text-purple-400">18,970</span></span>
+                    <span>T: <span className="text-cyan-400">{metrics[metrics.length - 1]?.raft_term || 452}</span></span>
+                    <span>Idx: <span className="text-purple-400">{(metrics[metrics.length - 1]?.raft_log_index || 18970).toLocaleString()}</span></span>
                   </div>
                 </div>
               </div>
