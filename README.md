@@ -1,6 +1,6 @@
 # Edge Scheduling Engine - 5G/6G Distributed Systems Final Project
 
-![5G Edge Scheduling Engine Demo](./5g_network_edge_scheduling_engine_demo.png)
+![5G Edge Scheduling Engine Demo](./edge_scheduling_demo_final.png)
 
 This project implements core distributed systems concepts including consensus algorithms, deep reinforcement learning, big data analytics, and microservice architectures. 
 
