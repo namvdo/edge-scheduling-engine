@@ -28,6 +28,59 @@ This simulator accurately models the decomposed 5G/6G Open Radio Access Network 
 
 ---
 
+## Technology & Core Concepts
+
+### Raft Consensus Algorithm
+The Edge Scheduling Engine uses a custom implementation of the **Raft consensus algorithm** to ensure high availability and fault tolerance of the scheduler. In a distributed edge environment, if one scheduler node fails, the system must continue to make consistent decisions.
+
+**Role of Raft:**
+- **Leader Election:** Nodes dynamically elect a single "Leader" to handle all scheduling requests. If the leader fails, a new one is elected within milliseconds.
+- **Log Replication:** Scheduling decisions (e.g., TDD splits, PRB allocations) are treated as log entries and replicated across the cluster.
+- **Strong Consistency:** A decision is only considered "committed" and applied to the 5G simulator once a majority of nodes (quorum) have acknowledged it.
+
+#### Leader Election Flow
+```mermaid
+sequenceDiagram
+    participant F1 as Follower 1
+    participant F2 as Follower 2
+    participant F3 as Follower 3
+    
+    Note over F1: Election Timeout!
+    F1->>F2: RequestVote (Term 1)
+    F1->>F3: RequestVote (Term 1)
+    
+    F2-->>F1: VoteGranted
+    F3-->>F1: VoteGranted
+    
+    Note over F1: Majority Reached
+    Note right of F1: Status: LEADER
+    
+    Loop Heartbeats
+        F1->>F2: AppendEntries (Heartbeat)
+        F1->>F3: AppendEntries (Heartbeat)
+    End
+```
+
+### Deep Deterministic Policy Gradient (DDPG)
+The scheduler utilizes a **DDPG (Actor-Critic)** reinforcement learning agent to optimize the **TDD Split** (Time Division Duplex ratio) in real-time. Unlike traditional fixed-ratio systems, this agent learns the unique traffic patterns of each network slice.
+
+- **Actor Network:** Predicts the optimal `dl_percent` (downlink percentage) based on the current network state.
+- **Critic Network:** Evaluates the chosen action by predicting the future reward (Q-value).
+- **State Space:** Includes average Downlink/Uplink buffer sizes, average CQI, and SINR levels across all UEs.
+- **Reward Function:** Encourages high throughput and penalizes buffer starvation (large remaining queues).
+
+### Network Metrics & Terminology
+This project uses industry-standard 3GPP-based metrics to model the wireless environment:
+
+| Term | Definition | Role in Project |
+| :--- | :--- | :--- |
+| **SINR** | Signal-to-Interference-plus-Noise Ratio | Measures signal quality in dB. Determined by distance and shadow fading in the simulator. |
+| **CQI** | Channel Quality Indicator | An index (1-15) derived from SINR. Higher CQI allows for higher spectral efficiency (more bits per symbol). |
+| **PRB** | Physical Resource Block | The base unit of spectrum allocation. The scheduler divides the total available PRBs among active UEs each epoch. |
+| **TDD** | Time Division Duplex | A method where downlink and uplink use the same frequency but different time slots. The DDPG agent optimizes this split. |
+
+---
+
 ## Getting Started
 
 ### Prerequisites
